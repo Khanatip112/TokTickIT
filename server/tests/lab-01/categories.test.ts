@@ -8,9 +8,9 @@ describe("GET /api/categories", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
       { id: 1, name: "Account and Access" },
-      { id: 2, name: "Hardware" },
-      { id: 3, name: "Software" },
-      { id: 4, name: "Network" },
+      { id: 2, name: "Hardware and Equipment" },
+      { id: 3, name: "Software and Applications" },
+      { id: 4, name: "Network and Internet" },
     ]);
   });
 });

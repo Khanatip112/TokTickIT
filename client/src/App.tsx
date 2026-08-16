@@ -38,11 +38,22 @@ export default function App() {
           {categories.length > 0 && (
             <div>
               <p className="fw-bold mb-2">Supported Request Categories:</p>
-              <ul className="list-unstyled ps-3">
-                {categories.map((cat) => (
-                  <li key={cat.id}>• {cat.name}</li>
-                ))}
-              </ul>
+              <table className="table table-bordered table-striped mt-2">
+                <thead>
+                  <tr>
+                    <th scope="col" style={{ width: 120 }}>Category ID</th>
+                    <th scope="col">Category Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((cat) => (
+                    <tr key={cat.id}>
+                      <td>{cat.id}</td>
+                      <td>{cat.name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
