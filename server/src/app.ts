@@ -7,7 +7,12 @@ import { getPrisma } from "./prisma.js";
 // Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
-app.use(cors());          // already wired: lets the Vite dev server call this API
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
@@ -40,6 +45,7 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
     });
     res.status(200).json(categories);
   } catch (error) {
+    console.error("GET /api/categories error:", error);
     res.status(500).json({ error: "Failed to fetch categories" });
   }
 });
