@@ -10,6 +10,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@adobe/css-tools": "^4.5.0",
+    "@jridgewell/sourcemap-codec": "^1.5.5",
+    "@rollup/rollup-win32-x64-msvc": "^4.62.4",
     "bootstrap": "^5.3.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
