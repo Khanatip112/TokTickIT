@@ -7,10 +7,12 @@ async function main() {
   const prisma = getPrisma();
   const categoryNames = [
     "Account and Access",
-    "Hardware",
-    "Software",
-    "Network",
+    "Hardware and Equipment",
+    "Software and Applications",
+    "Network and Internet",
   ];
+
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "Category" RESTART IDENTITY CASCADE;');
 
   for (const name of categoryNames) {
     await prisma.category.upsert({
