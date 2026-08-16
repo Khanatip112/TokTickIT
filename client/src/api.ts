@@ -15,25 +15,29 @@ export interface SystemStatus {
 //        then fetch `${API_URL}/api/categories`; if not ok, throw.
 //        return { online: true, categories }.
 // Throwing on failure lets the UI show a single Offline/error state.
+export async function checkHealth(): Promise<{ status: string }> {
+  const res = await fetch(`${API_URL}/api/health`);
+  if (!res.ok) {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  return res.json();
+}
+
+export async function getCategories(): Promise<Category[]> {
+  const res = await fetch(`${API_URL}/api/categories`);
+  if (!res.ok) {
+    throw new Error("Unable to connect to TokTickIT API");
+  }
+  return res.json();
+}
+
 export async function checkSystem(): Promise<SystemStatus> {
   try {
-    const healthRes = await fetch(`${API_URL}/api/health`);
-    if (!healthRes.ok) {
-      throw new Error("Unable to connect to TokTickIT API");
-    }
+    await checkHealth();
+    const categories = await getCategories();
+    return { online: true, categories };
   } catch (error) {
     throw new Error("Unable to connect to TokTickIT API");
   }
-
-  let categories: Category[] = [];
-  try {
-    const catRes = await fetch(`${API_URL}/api/categories`);
-    if (catRes.ok) {
-      categories = await catRes.json();
-    }
-  } catch {
-    // If categories endpoint is not available yet (e.g. Issue 2 before Issue 4), ignore error
-  }
-
-  return { online: true, categories };
 }
+
