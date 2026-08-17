@@ -79,7 +79,6 @@ You're running out of time but I believe in you! Go fix them fast!
 
 ** PR https://github.com/JKNIGHTSX/toktickit/pull/11 **
 > My comment: Great jk ! Delivered solid results and nailed every requirement
-
 > Partner's response (JKNIGHTSX): LET'S GOOOOoooooo 
 
 ** PR https://github.com/JKNIGHTSX/toktickit/pull/12 **
