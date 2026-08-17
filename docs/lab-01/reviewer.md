@@ -71,16 +71,20 @@ You're running out of time but I believe in you! Go fix them fast!
 
 **PR https://github.com/JKNIGHTSX/toktickit/pull/8 **
 > My comment: All criteria are work jk
+
 > Partner's response (JKNIGHTSX): thank for checking the code for me
 
 ** PR https://github.com/JKNIGHTSX/toktickit/pull/9 **
 > My comment: Great work on Issue 2! Everything meets the acceptance criteria and is ready to merge.
+
 > Partner's response (JKNIGHTSX): Nice to have you comment now I can move to issue 3
 
 ** PR https://github.com/JKNIGHTSX/toktickit/pull/11 **
 > My comment: Great jk ! Delivered solid results and nailed every requirement
+
 > Partner's response (JKNIGHTSX): LET'S GOOOOoooooo 
 
 ** PR https://github.com/JKNIGHTSX/toktickit/pull/12 **
 > My comment: Great job jk! Finally. Make sure to merge into main and prepare the report too.
+
 > Partner's response (JKNIGHTSX):
