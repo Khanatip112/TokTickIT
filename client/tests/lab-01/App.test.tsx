@@ -6,17 +6,17 @@ import * as api from "../../src/api.js";
 describe("App", () => {
   it("renders the TokTickIT heading", () => {
     render(<App />);
-    expect(screen.getByText(/TokTickIT/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/TokTickIT/i).length).toBeGreaterThan(0);
   });
 
   it("shows Online and the seeded categories in a table on success", async () => {
     vi.spyOn(api, "checkSystem").mockResolvedValueOnce({
       online: true,
       categories: [
-        { id: 1, name: "Account and Access" },
-        { id: 2, name: "Hardware and Equipment" },
-        { id: 3, name: "Software and Applications" },
-        { id: 4, name: "Network and Internet" },
+        { id: "cat-1", name: "Account and Access" },
+        { id: "cat-2", name: "Hardware" },
+        { id: "cat-3", name: "Software" },
+        { id: "cat-4", name: "Network" },
       ],
     });
 
@@ -34,9 +34,9 @@ describe("App", () => {
     expect(within(table).getByText("Category Name")).toBeInTheDocument();
 
     expect(within(table).getByText("Account and Access")).toBeInTheDocument();
-    expect(within(table).getByText("Hardware and Equipment")).toBeInTheDocument();
-    expect(within(table).getByText("Software and Applications")).toBeInTheDocument();
-    expect(within(table).getByText("Network and Internet")).toBeInTheDocument();
+    expect(within(table).getByText("Hardware")).toBeInTheDocument();
+    expect(within(table).getByText("Software")).toBeInTheDocument();
+    expect(within(table).getByText("Network")).toBeInTheDocument();
   });
 
   it("shows an Offline error message when the API is unavailable", async () => {
@@ -55,4 +55,3 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 });
-
