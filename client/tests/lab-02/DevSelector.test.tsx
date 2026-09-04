@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import App from "../../src/App.js";
 import * as api from "../../src/api.js";
+import { RequesterProvider } from "../../src/context/RequesterContext.js";
+import React from "react";
 
 const mockRequesters: api.DevRequester[] = [
   {
@@ -18,16 +20,27 @@ const mockRequesters: api.DevRequester[] = [
   },
 ];
 
+/** Render App wrapped in the RequesterProvider (mirrors main.tsx setup) */
+function renderApp() {
+  return render(
+    <RequesterProvider>
+      <App />
+    </RequesterProvider>
+  );
+}
+
 describe("Dev Requester Identity Context & Selector", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    // Prevent real API calls from MyTicketsList component
+    vi.spyOn(api, "getMyTickets").mockResolvedValue([]);
   });
 
   it("hydrates first active requester when localStorage is empty", async () => {
     vi.spyOn(api, "getDevRequesters").mockResolvedValueOnce(mockRequesters);
 
-    render(<App />);
+    renderApp();
 
     const elements = await screen.findAllByText(/Jennifer Anderson/i);
     expect(elements.length).toBeGreaterThan(0);
@@ -38,25 +51,31 @@ describe("Dev Requester Identity Context & Selector", () => {
     localStorage.setItem("toktickit_requester_id", "req-2");
     vi.spyOn(api, "getDevRequesters").mockResolvedValueOnce(mockRequesters);
 
-    render(<App />);
+    renderApp();
 
     const elements = await screen.findAllByText(/David Lee/i);
     expect(elements.length).toBeGreaterThan(0);
   });
 
-  it("opens modal and switches requester context when clicking Change Requester", async () => {
+  it("opens modal and switches requester context when clicking dev identity switcher", async () => {
     vi.spyOn(api, "getDevRequesters").mockResolvedValue(mockRequesters);
 
-    render(<App />);
+    renderApp();
 
     const elements = await screen.findAllByText(/Jennifer Anderson/i);
     expect(elements.length).toBeGreaterThan(0);
 
-    const changeBtn = screen.getByRole("button", { name: /Change Requester/i });
+    // Click the identity switcher button in the header (using its unique ID)
+    const changeBtn = document.getElementById("dev-identity-switcher-btn")!;
     fireEvent.click(changeBtn);
 
-    expect(screen.getByText(/Select Development Requester/i)).toBeInTheDocument();
+    // Modal should open
+    await waitFor(() => {
+      const modalTitle = document.getElementById("devSelectorModalTitle");
+      expect(modalTitle).not.toBeNull();
+    });
 
+    // Click David Lee in the modal
     const davidOption = screen.getByText("David Lee");
     fireEvent.click(davidOption);
 
