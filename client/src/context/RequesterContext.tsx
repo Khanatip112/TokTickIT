@@ -1,93 +1,74 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { DevRequester, getDevRequesters } from "../api.js";
 
-const LOCAL_STORAGE_KEY = "toktickit_requester_id";
+const STORAGE_KEY = "toktickit_requester_id";
 
-export interface RequesterContextType {
+interface RequesterContextValue {
   currentRequester: DevRequester | null;
-  activeRequesters: DevRequester[];
+  allRequesters: DevRequester[];
   isLoading: boolean;
-  isSelectorOpen: boolean;
-  setRequester: (id: string) => void;
-  openSelector: () => void;
-  closeSelector: () => void;
-  error: string | null;
+  setCurrentRequester: (requester: DevRequester | null) => void;
 }
 
-const RequesterContext = createContext<RequesterContextType | undefined>(undefined);
+const RequesterContext = createContext<RequesterContextValue | null>(null);
 
-export const RequesterProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [activeRequesters, setActiveRequesters] = useState<DevRequester[]>([]);
+export function RequesterProvider({ children }: { children: ReactNode }) {
   const [currentRequester, setCurrentRequesterState] = useState<DevRequester | null>(null);
+  const [allRequesters, setAllRequesters] = useState<DevRequester[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSelectorOpen, setIsSelectorOpen] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function loadRequesters() {
+    async function init() {
       setIsLoading(true);
-      setError(null);
       try {
         const requesters = await getDevRequesters();
-        setActiveRequesters(requesters);
+        setAllRequesters(requesters);
 
-        if (requesters.length > 0) {
-          const savedId = localStorage.getItem(LOCAL_STORAGE_KEY);
-          const found = requesters.find((r) => r.id === savedId);
+        // Rehydrate stored requester from localStorage if still active
+        const storedId = localStorage.getItem(STORAGE_KEY);
+        if (storedId) {
+          const found = requesters.find((r) => r.id === storedId);
           if (found) {
             setCurrentRequesterState(found);
           } else {
-            // Fallback to first active requester
-            setCurrentRequesterState(requesters[0]);
-            localStorage.setItem(LOCAL_STORAGE_KEY, requesters[0].id);
+            // Stored requester is no longer active — clear it
+            localStorage.removeItem(STORAGE_KEY);
           }
-        } else {
-          setCurrentRequesterState(null);
         }
-      } catch (err: any) {
-        console.error("Error loading dev requesters:", err);
-        setError(err.message || "Failed to load development requesters");
+
+        // Auto-select first requester if none stored
+        if (!storedId && requesters.length > 0) {
+          setCurrentRequesterState(requesters[0]);
+          localStorage.setItem(STORAGE_KEY, requesters[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to load dev requesters:", err);
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadRequesters();
+    init();
   }, []);
 
-  const setRequester = (id: string) => {
-    const target = activeRequesters.find((r) => r.id === id);
-    if (target) {
-      setCurrentRequesterState(target);
-      localStorage.setItem(LOCAL_STORAGE_KEY, id);
+  function setCurrentRequester(requester: DevRequester | null) {
+    setCurrentRequesterState(requester);
+    if (requester) {
+      localStorage.setItem(STORAGE_KEY, requester.id);
+    } else {
+      localStorage.removeItem(STORAGE_KEY);
     }
-  };
-
-  const openSelector = () => setIsSelectorOpen(true);
-  const closeSelector = () => setIsSelectorOpen(false);
+  }
 
   return (
-    <RequesterContext.Provider
-      value={{
-        currentRequester,
-        activeRequesters,
-        isLoading,
-        isSelectorOpen,
-        setRequester,
-        openSelector,
-        closeSelector,
-        error,
-      }}
-    >
+    <RequesterContext.Provider value={{ currentRequester, allRequesters, isLoading, setCurrentRequester }}>
       {children}
     </RequesterContext.Provider>
   );
-};
+}
 
-export function useRequesterContext(): RequesterContextType {
-  const context = useContext(RequesterContext);
-  if (!context) {
-    throw new Error("useRequesterContext must be used within a RequesterProvider");
-  }
-  return context;
+export function useRequesterContext(): RequesterContextValue {
+  const ctx = useContext(RequesterContext);
+  if (!ctx) throw new Error("useRequesterContext must be used within RequesterProvider");
+  return ctx;
 }

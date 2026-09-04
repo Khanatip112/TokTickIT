@@ -1,79 +1,119 @@
-import React from "react";
+import React, { useState } from "react";
 import { useRequesterContext } from "../context/RequesterContext.js";
+import { DevSelectorModal } from "./DevSelectorModal.js";
 
 interface HeaderProps {
-  activeTab?: "my-tickets" | "create-ticket";
-  onNavigate?: (tab: "my-tickets" | "create-ticket") => void;
+  activeTab: "my-tickets" | "create-ticket";
+  setActiveTab: (tab: "my-tickets" | "create-ticket") => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ activeTab = "my-tickets", onNavigate }) => {
-  const { currentRequester, openSelector } = useRequesterContext();
+export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
+  const { currentRequester } = useRequesterContext();
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   return (
-    <header className="bg-zen-primary text-white shadow-sm sticky-top">
-      <div className="container-fluid px-4 py-2">
-        <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-          {/* Brand Logo & Navigation Links */}
-          <div className="d-flex align-items-center gap-4">
-            <div className="d-flex align-items-center gap-2 cursor-pointer" onClick={() => onNavigate && onNavigate("my-tickets")}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71V3.5z"/>
-                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0z"/>
-              </svg>
-              <span className="fs-4 fw-bold tracking-tight">TokTickIT</span>
+    <>
+      <header
+        className="sticky-top shadow-sm"
+        style={{
+          background: "linear-gradient(135deg, #006B3C 0%, #0B7A46 100%)",
+          borderBottom: "3px solid rgba(255,255,255,0.15)",
+          zIndex: 1000,
+        }}
+      >
+        <div
+          className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-2 px-4"
+          style={{ maxWidth: 1100, margin: "0 auto" }}
+        >
+          {/* Brand */}
+          <div className="d-flex align-items-center gap-2">
+            <span style={{ fontSize: "1.5rem" }}>🎫</span>
+            <div>
+              <h1
+                className="mb-0 fw-bold text-white"
+                style={{ fontSize: "1.15rem", letterSpacing: "-0.5px" }}
+              >
+                TokTickIT
+              </h1>
+              <span className="text-white opacity-70" style={{ fontSize: "0.72rem", letterSpacing: "0.5px" }}>
+                IT SERVICE DESK MVP
+              </span>
             </div>
-
-            <nav className="d-flex gap-2">
-              <button
-                className={`btn btn-sm px-3 ${
-                  activeTab === "my-tickets" ? "btn-zen-light shadow-sm" : "text-white text-decoration-none"
-                }`}
-                onClick={() => onNavigate && onNavigate("my-tickets")}
-              >
-                📋 My Tickets
-              </button>
-              <button
-                className={`btn btn-sm px-3 ${
-                  activeTab === "create-ticket" ? "btn-zen-light shadow-sm" : "text-white text-decoration-none"
-                }`}
-                onClick={() => onNavigate && onNavigate("create-ticket")}
-              >
-                ➕ Create Ticket
-              </button>
-            </nav>
           </div>
 
-          {/* Dev Identity Context Badge */}
-          <div className="d-flex align-items-center gap-3">
-            {currentRequester ? (
-              <div className="d-flex align-items-center bg-white bg-opacity-10 rounded-3 px-3 py-1 border border-white border-opacity-25">
-                <div className="me-3 text-end">
-                  <div className="fw-semibold text-white lh-1 small">{currentRequester.name}</div>
-                  <small className="text-white-50 opacity-75" style={{ fontSize: "0.75rem" }}>
-                    {currentRequester.department ? `${currentRequester.department} • ` : ""}
-                    {currentRequester.email}
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-zen-light d-flex align-items-center gap-1 shadow-sm ms-2"
-                  onClick={openSelector}
-                  title="Switch active Development Requester identity"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-                    <path fillRule="evenodd" d="M1 11.5a.5.5 0 0 0 .5.5h11.793l-3.147 3.146a.5.5 0 0 0 .708.708l4-4a.5.5 0 0 0 0-.708l-4-4a.5.5 0 0 0-.708.708L13.293 11H1.5a.5.5 0 0 0-.5.5zm14-7a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 5H14.5a.5.5 0 0 0 .5-.5z"/>
-                  </svg>
-                  <span>Change Requester</span>
-                </button>
-              </div>
-            ) : (
-              <button className="btn btn-sm btn-zen-light" onClick={openSelector}>
-                Select Requester Identity
-              </button>
-            )}
-          </div>
+          {/* Navigation Tabs */}
+          <nav className="d-flex gap-1" role="navigation" aria-label="Main navigation">
+            <button
+              id="nav-tab-my-tickets"
+              className={`btn btn-sm px-3 py-2 fw-semibold ${
+                activeTab === "my-tickets"
+                  ? "bg-white text-zen-primary"
+                  : "text-white border-white border-opacity-25"
+              }`}
+              style={{
+                borderRadius: "0.5rem",
+                background: activeTab === "my-tickets" ? "#fff" : "rgba(255,255,255,0.12)",
+                border: activeTab === "my-tickets" ? "none" : "1px solid rgba(255,255,255,0.25)",
+                transition: "all 0.2s ease",
+              }}
+              onClick={() => setActiveTab("my-tickets")}
+            >
+              📋 My Tickets
+            </button>
+            <button
+              id="nav-tab-create-ticket"
+              className={`btn btn-sm px-3 py-2 fw-semibold`}
+              style={{
+                borderRadius: "0.5rem",
+                background: activeTab === "create-ticket" ? "#fff" : "rgba(255,255,255,0.12)",
+                border: activeTab === "create-ticket" ? "none" : "1px solid rgba(255,255,255,0.25)",
+                color: activeTab === "create-ticket" ? "#006B3C" : "#fff",
+                transition: "all 0.2s ease",
+              }}
+              onClick={() => setActiveTab("create-ticket")}
+            >
+              ＋ New Ticket
+            </button>
+          </nav>
+
+          {/* Dev Identity Button */}
+          <button
+            id="dev-identity-switcher-btn"
+            className="btn btn-sm d-flex align-items-center gap-2"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.35)",
+              borderRadius: "2rem",
+              color: "#fff",
+              padding: "0.35rem 0.85rem",
+              backdropFilter: "blur(4px)",
+              transition: "background 0.2s",
+            }}
+            onClick={() => setIsSelectorOpen(true)}
+            title="Switch development requester identity"
+          >
+            <span
+              className="d-flex align-items-center justify-content-center rounded-circle fw-bold"
+              style={{
+                width: 26,
+                height: 26,
+                background: "rgba(255,255,255,0.25)",
+                fontSize: "0.7rem",
+              }}
+            >
+              {currentRequester
+                ? currentRequester.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+                : "?"}
+            </span>
+            <span style={{ fontSize: "0.82rem", maxWidth: 120 }} className="text-truncate">
+              {currentRequester ? currentRequester.name : "No Identity"}
+            </span>
+            <span style={{ fontSize: "0.7rem" }}>▾</span>
+          </button>
         </div>
-      </div>
-    </header>
+      </header>
+
+      <DevSelectorModal isOpen={isSelectorOpen} onClose={() => setIsSelectorOpen(false)} />
+    </>
   );
 };
