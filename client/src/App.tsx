@@ -5,15 +5,13 @@ import { Header } from "./components/Header.js";
 import { DevSelectorModal } from "./components/DevSelectorModal.js";
 import { CreateTicketForm } from "./components/CreateTicketForm.js";
 
+// UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
-function MainContent() {
+export default function App() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">("my-tickets");
-
-  const { currentRequester } = useRequesterContext();
 
   async function handleCheck() {
     setState("loading");
@@ -29,9 +27,10 @@ function MainContent() {
   }
 
   return (
-    <div className="min-vh-100 d-flex flex-column" style={{ backgroundColor: "var(--zen-bg)" }}>
-      <Header activeTab={activeTab} onNavigate={(tab) => setActiveTab(tab)} />
-      <DevSelectorModal />
+    <div className="container py-5" style={{ maxWidth: 640 }}>
+      <h1 className="h3 mb-4">
+        TokTickIT <span className="text-success">IT Service Desk</span>
+      </h1>
 
       <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
         {/* Active Context Banner */}
@@ -124,13 +123,5 @@ function MainContent() {
         )}
       </main>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <RequesterProvider>
-      <MainContent />
-    </RequesterProvider>
   );
 }

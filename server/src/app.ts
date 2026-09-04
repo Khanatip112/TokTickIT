@@ -5,21 +5,23 @@ import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadMiddleware } from "./utils/upload.js";
 import multer from "multer";
 
+
+// The Express app is exported separately from app.listen() (see index.ts) so
+// Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
 app.use(
   cors({
-    origin: true,
+    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "x-dev-requester-id", "Authorization"],
   })
 );
-
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
-// Health check
+// Issue 2 — API health check
+// Make the test in tests/lab-01/health.test.ts pass.
+// It must return HTTP 200 with JSON: { status: "ok", service: "TokTickIT API" }
 // ---------------------------------------------------------------------------
 app.get("/api/health", (_req: Request, res: Response) => {
   res.status(200).json({ status: "ok", service: "TokTickIT API" });
@@ -49,7 +51,11 @@ app.get("/api/dev-requesters", async (_req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// Issue 4 — Category list
 // GET /api/categories
+//   -> read categories from PostgreSQL via getPrisma().category.findMany(...)
+//   -> return each { id, name } in a predictable (id) order
+//   -> on failure, respond 500 with a safe message
 // ---------------------------------------------------------------------------
 app.get("/api/categories", async (_req: Request, res: Response) => {
   try {
@@ -218,3 +224,4 @@ app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response)
 });
 
 export default app;
+
