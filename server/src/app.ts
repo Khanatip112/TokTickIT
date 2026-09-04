@@ -2,16 +2,18 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import { getPrisma } from "./prisma.js";
 
-// The Express app is exported separately from app.listen() (see index.ts) so
-// Supertest can import `app` without opening a port. Do not merge these files.
 export const app = express();
 
+// Enable CORS for all local development origins and allow custom header x-dev-requester-id
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
+    origin: true,
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "x-dev-requester-id", "Authorization"],
   })
 );
+
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
