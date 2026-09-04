@@ -1,18 +1,13 @@
 import { useState } from "react";
 import { checkSystem, Category } from "./api.js";
-import { RequesterProvider, useRequesterContext } from "./context/RequesterContext.js";
-import { Header } from "./components/Header.js";
-import { DevSelectorModal } from "./components/DevSelectorModal.js";
 
+// UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
-function MainContent() {
+export default function App() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">("my-tickets");
-
-  const { currentRequester } = useRequesterContext();
 
   async function handleCheck() {
     setState("loading");
@@ -28,85 +23,48 @@ function MainContent() {
   }
 
   return (
-    <div className="min-vh-100 d-flex flex-column" style={{ backgroundColor: "var(--zen-bg)" }}>
-      <Header activeTab={activeTab} onNavigate={(tab) => setActiveTab(tab)} />
-      <DevSelectorModal />
+    <div className="container py-5" style={{ maxWidth: 640 }}>
+      <h1 className="h3 mb-4">
+        TokTickIT <span className="text-success">IT Service Desk</span>
+      </h1>
 
-      <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
-        {/* Active Context Banner */}
-        <div className="card-zen p-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div className="d-flex align-items-center gap-3">
-            <div className="bg-zen-pale text-zen-primary rounded-circle p-2 fs-5">
-              👤
-            </div>
+      <button className="btn btn-success mb-4" onClick={handleCheck} disabled={state === "loading"}>
+        {state === "loading" ? "Loading…" : "Check System"}
+      </button>
+
+      {state === "success" && (
+        <div className="mt-3">
+          <p className="fw-bold mb-3">System Status: <span className="text-success">Online</span></p>
+          {categories.length > 0 && (
             <div>
-              <span className="text-muted small d-block">Active Development Identity Context</span>
-              <strong className="fs-5 text-zen-primary">
-                {currentRequester ? currentRequester.name : "No Requester Selected"}
-              </strong>
-              {currentRequester && (
-                <span className="ms-2 text-muted small">
-                  ({currentRequester.email} • {currentRequester.department || "No Department"})
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="card-zen p-4 mb-4">
-          <h1 className="h4 mb-3 text-zen-primary fw-bold">
-            TokTickIT <span className="text-success">IT Service Desk MVP</span>
-          </h1>
-
-          <button className="btn btn-zen-primary mb-3" onClick={handleCheck} disabled={state === "loading"}>
-            {state === "loading" ? "Loading…" : "Check System"}
-          </button>
-
-          {state === "success" && (
-            <div className="mt-3">
-              <p className="fw-bold mb-3">
-                System Status: <span className="text-success">Online</span>
-              </p>
-              {categories.length > 0 && (
-                <div>
-                  <p className="fw-bold mb-2">Supported Request Categories:</p>
-                  <table className="table table-bordered table-striped mt-2">
-                    <thead>
-                      <tr>
-                        <th scope="col" style={{ width: 220 }}>Category ID</th>
-                        <th scope="col">Category Name</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {categories.map((cat) => (
-                        <tr key={cat.id}>
-                          <td><code className="text-dark">{cat.id}</code></td>
-                          <td>{cat.name}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {state === "error" && (
-            <div className="mt-3">
-              <p className="fw-bold mb-1 text-danger">System Status: Offline</p>
-              <p className="text-muted">{errorMessage}</p>
+              <p className="fw-bold mb-2">Supported Request Categories:</p>
+              <table className="table table-bordered table-striped mt-2">
+                <thead>
+                  <tr>
+                    <th scope="col" style={{ width: 120 }}>Category ID</th>
+                    <th scope="col">Category Name</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {categories.map((cat) => (
+                    <tr key={cat.id}>
+                      <td>{cat.id}</td>
+                      <td>{cat.name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
-      </main>
+      )}
+
+      {state === "error" && (
+        <div className="mt-3">
+          <p className="fw-bold mb-1 text-danger">System Status: Offline</p>
+          <p className="text-muted">{errorMessage}</p>
+        </div>
+      )}
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <RequesterProvider>
-      <MainContent />
-    </RequesterProvider>
   );
 }
