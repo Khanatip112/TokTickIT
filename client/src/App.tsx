@@ -1,133 +1,123 @@
 import { useState } from "react";
-import { useRequesterContext } from "./context/RequesterContext.js";
-import { Header } from "./components/Header.js";
-import { CreateTicketForm } from "./components/CreateTicketForm.js";
-import { MyTicketsList } from "./components/MyTicketsList.js";
-import { TicketDetailView } from "./components/TicketDetailView.js";
-import { Ticket } from "./api.js";
+import { checkSystem, Category } from "./api";
+import { useRequesterContext } from "./context/RequesterContext";
+import { Header } from "./components/Header";
+import { CreateTicketForm } from "./components/CreateTicketForm";
 
-type ViewState =
-  | { view: "my-tickets" }
-  | { view: "create-ticket" }
-  | { view: "ticket-detail"; ticketId: string };
+type UiState = "idle" | "loading" | "success" | "error";
 
 export default function App() {
-  const { currentRequester, isLoading: isCtxLoading } = useRequesterContext();
-  const [viewState, setViewState] = useState<ViewState>({ view: "my-tickets" });
-  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">("my-tickets");
+  const [state, setState] = useState<UiState>("idle");
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">("create-ticket");
+  const { currentRequester } = useRequesterContext();
 
-  function handleTabChange(tab: "my-tickets" | "create-ticket") {
-    setActiveTab(tab);
-    setViewState({ view: tab });
-  }
-
-  function handleViewTicket(ticketId: string) {
-    setViewState({ view: "ticket-detail", ticketId });
-  }
-
-  function handleBackToTickets() {
-    setActiveTab("my-tickets");
-    setViewState({ view: "my-tickets" });
-  }
-
-  function handleCreateSuccess(ticket: Ticket) {
-    // Navigate to the newly created ticket's detail view
-    setViewState({ view: "ticket-detail", ticketId: ticket.id });
-  }
-
-  function handleCreateCancel() {
-    setActiveTab("my-tickets");
-    setViewState({ view: "my-tickets" });
-  }
-
-  if (isCtxLoading) {
-    return (
-      <div
-        className="d-flex align-items-center justify-content-center min-vh-100"
-        style={{ background: "linear-gradient(135deg, #EAF6EF 0%, #f8fffe 100%)" }}
-      >
-        <div className="text-center">
-          <div className="spinner-border text-zen-primary mb-3" style={{ width: "2.5rem", height: "2.5rem" }} role="status">
-            <span className="visually-hidden">Loading identity context...</span>
-          </div>
-          <p className="text-muted fw-semibold">Loading TokTickIT...</p>
-        </div>
-      </div>
-    );
+  async function handleCheck() {
+    setState("loading");
+    setErrorMessage("");
+    try {
+      const status = await checkSystem();
+      setCategories(status.categories);
+      setState("success");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Unable to connect to TokTickIT API");
+      setState("error");
+    }
   }
 
   return (
-    <div className="d-flex flex-column min-vh-100" style={{ background: "#f6faf8" }}>
-      {/* Sticky Header */}
-      <Header
-        activeTab={activeTab}
-        setActiveTab={handleTabChange}
-      />
+    <div className="d-flex flex-column min-vh-100 bg-light">
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Main Content */}
-      <main
-        className="flex-grow-1 py-4 px-3"
-        style={{ maxWidth: 960, width: "100%", margin: "0 auto" }}
-      >
+      <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
         {/* Active Context Banner */}
-        <div
-          className="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 mb-4 rounded-3 shadow-sm"
-          style={{ background: "#EAF6EF", border: "1px solid rgba(0,107,60,0.15)" }}
-        >
+        <div className="card-zen p-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
           <div className="d-flex align-items-center gap-3">
-            <div
-              className="d-flex align-items-center justify-content-center rounded-circle fw-bold text-white flex-shrink-0"
-              style={{ width: 44, height: 44, background: "#006B3C", fontSize: "1rem" }}
-            >
-              {currentRequester
-                ? currentRequester.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
-                : "?"}
+            <div className="bg-zen-pale text-zen-primary rounded-circle p-2 fs-5">
+              👤
             </div>
             <div>
-              <span className="text-muted small d-block" style={{ fontSize: "0.72rem", letterSpacing: "0.5px" }}>
-                ACTIVE DEVELOPMENT IDENTITY CONTEXT
-              </span>
-              <strong className="fs-6 text-zen-primary">
+              <span className="text-muted small d-block">Active Development Identity Context</span>
+              <strong className="fs-5 text-zen-primary">
                 {currentRequester ? currentRequester.name : "No Requester Selected"}
               </strong>
               {currentRequester && (
                 <span className="ms-2 text-muted small">
-                  {currentRequester.email}
-                  {currentRequester.department ? ` · ${currentRequester.department}` : ""}
+                  ({currentRequester.email} • {currentRequester.department || "No Department"})
                 </span>
               )}
             </div>
           </div>
-          <div>
-            <span
-              className="badge fw-normal"
-              style={{ background: "#d4edda", color: "#155724", fontSize: "0.75rem" }}
-            >
-              🔧 Dev Mode
-            </span>
-          </div>
         </div>
 
-        {/* View Router */}
-        {viewState.view === "my-tickets" && (
-          <MyTicketsList
-            onViewTicket={handleViewTicket}
-            onCreateTicket={() => handleTabChange("create-ticket")}
-          />
-        )}
-
-        {viewState.view === "create-ticket" && (
+        {/* View Switcher */}
+        {activeTab === "create-ticket" ? (
           <CreateTicketForm
-            onSuccessRedirect={handleCreateSuccess}
-            onCancel={handleCreateCancel}
+            onCancel={() => setActiveTab("my-tickets")}
+            onSuccessRedirect={() => setActiveTab("my-tickets")}
           />
-        )}
+        ) : (
+          <div className="card-zen p-4 mb-4">
+            <div className="d-flex align-items-center justify-content-between mb-4">
+              <div>
+                <h2 className="h4 text-zen-primary fw-bold mb-1">My Support Tickets</h2>
+                <p className="text-muted mb-0 small">View and track all tickets submitted under your requester identity.</p>
+              </div>
+              <button
+                className="btn btn-zen-primary"
+                onClick={() => setActiveTab("create-ticket")}
+              >
+                + Create New Ticket
+              </button>
+            </div>
 
-        {viewState.view === "ticket-detail" && (
-          <TicketDetailView
-            ticketId={viewState.ticketId}
-            onBackToTickets={handleBackToTickets}
-          />
+            <div className="card-zen p-4 mb-4">
+              <h1 className="h4 mb-3 text-zen-primary fw-bold">
+                TokTickIT <span className="text-success">IT Service Desk MVP</span>
+              </h1>
+
+              <button className="btn btn-zen-primary mb-3" onClick={handleCheck} disabled={state === "loading"}>
+                {state === "loading" ? "Loading…" : "Check System"}
+              </button>
+
+              {state === "success" && (
+                <div className="mt-3">
+                  <p className="fw-bold mb-3">
+                    System Status: <span className="text-success">Online</span>
+                  </p>
+                  {categories.length > 0 && (
+                    <div>
+                      <p className="fw-bold mb-2">Supported Request Categories:</p>
+                      <table className="table table-bordered table-striped mt-2">
+                        <thead>
+                          <tr>
+                            <th scope="col" style={{ width: 220 }}>Category ID</th>
+                            <th scope="col">Category Name</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {categories.map((cat) => (
+                            <tr key={cat.id}>
+                              <td><code className="text-dark">{cat.id}</code></td>
+                              <td>{cat.name}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {state === "error" && (
+                <div className="mt-3">
+                  <p className="fw-bold mb-1 text-danger">System Status: Offline</p>
+                  <p className="text-muted">{errorMessage}</p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>
