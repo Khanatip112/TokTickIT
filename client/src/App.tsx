@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { checkSystem, Category } from "./api.js";
-import { RequesterProvider, useRequesterContext } from "./context/RequesterContext.js";
-import { Header } from "./components/Header.js";
-import { DevSelectorModal } from "./components/DevSelectorModal.js";
-import { CreateTicketForm } from "./components/CreateTicketForm.js";
+import { checkSystem, Category } from "./api";
+import { RequesterProvider, useRequesterContext } from "./context/RequesterContext";
+import { Header } from "./components/Header";
+import { CreateTicketForm } from "./components/CreateTicketForm";
 
 // UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
-export default function App() {
+function MainContent() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">("create-ticket");
+  const { currentRequester } = useRequesterContext();
 
   async function handleCheck() {
     setState("loading");
@@ -27,10 +28,9 @@ export default function App() {
   }
 
   return (
-    <div className="container py-5" style={{ maxWidth: 640 }}>
-      <h1 className="h3 mb-4">
-        TokTickIT <span className="text-success">IT Service Desk</span>
-      </h1>
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      {/* ส่งแค่ activeTab และ setActiveTab ตามที่ HeaderProps กำหนด */}
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
         {/* Active Context Banner */}
@@ -123,5 +123,13 @@ export default function App() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <RequesterProvider>
+      <MainContent />
+    </RequesterProvider>
   );
 }

@@ -1,0 +1,171 @@
+/* ==========================================================================
+   TokTickIT — Zen Green Design System
+   Issue 4 / Issue 6 UI Foundation
+   ========================================================================== */
+
+/* --- Fonts --- */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+/* --- Root Design Tokens --- */
+:root {
+  --zen-primary:       #006B3C;
+  --zen-hover:         #0B7A46;
+  --zen-pale:          #EAF6EF;
+  --zen-background:    #f6faf8;
+  --zen-card:          #ffffff;
+  --zen-readonly:      #f4f8f6;
+  --zen-border:        rgba(0, 107, 60, 0.15);
+  --zen-border-light:  #e0ece6;
+  --zen-text:          #1a1a1a;
+  --zen-muted:         #6c757d;
+  --zen-radius:        0.75rem;
+  --zen-radius-sm:     0.5rem;
+  --zen-shadow:        0 2px 12px rgba(0, 107, 60, 0.08);
+  --zen-shadow-hover:  0 6px 24px rgba(0, 107, 60, 0.14);
+}
+
+/* --- Base --- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  color: var(--zen-text);
+}
+
+body {
+  background-color: var(--zen-background);
+  margin: 0;
+}
+
+/* --- Utility: Colors --- */
+.text-zen-primary  { color: var(--zen-primary) !important; }
+.bg-zen-pale       { background-color: var(--zen-pale) !important; }
+.bg-zen-readonly   { background-color: var(--zen-readonly) !important; }
+
+/* --- Card --- */
+.card-zen {
+  background: var(--zen-card);
+  border: 1px solid var(--zen-border);
+  border-radius: var(--zen-radius);
+  box-shadow: var(--zen-shadow);
+  transition: box-shadow 0.2s ease;
+}
+.card-zen:hover {
+  box-shadow: var(--zen-shadow-hover);
+}
+
+/* --- Primary Button --- */
+.btn-zen-primary {
+  background-color: var(--zen-primary);
+  border-color: var(--zen-primary);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: var(--zen-radius-sm);
+  transition: background-color 0.18s ease, transform 0.1s ease, box-shadow 0.18s ease;
+}
+.btn-zen-primary:hover:not(:disabled) {
+  background-color: var(--zen-hover);
+  border-color: var(--zen-hover);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 107, 60, 0.25);
+}
+.btn-zen-primary:active {
+  transform: translateY(0);
+}
+.btn-zen-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* --- Outline Button --- */
+.btn-zen-outline {
+  background-color: transparent;
+  border: 1.5px solid var(--zen-primary);
+  color: var(--zen-primary);
+  font-weight: 600;
+  border-radius: var(--zen-radius-sm);
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.btn-zen-outline:hover:not(:disabled) {
+  background-color: var(--zen-pale);
+  color: var(--zen-primary);
+}
+
+/* --- Form Controls --- */
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--zen-primary);
+  box-shadow: 0 0 0 0.2rem rgba(0, 107, 60, 0.18);
+}
+
+/* --- Read-Only Inputs --- */
+.form-control[readonly],
+.form-control:disabled,
+input[readonly],
+input:disabled {
+  background-color: var(--zen-readonly) !important;
+  color: #444 !important;
+  border-color: #d0ddd6 !important;
+}
+
+/* --- Badge Tweaks --- */
+.badge.bg-zen-pale {
+  background-color: var(--zen-pale) !important;
+}
+
+/* --- Spinner --- */
+.text-zen-primary.spinner-border {
+  border-color: var(--zen-primary);
+  border-right-color: transparent;
+}
+
+/* --- Scrollbar (Webkit) --- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #b8d4c5;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--zen-primary);
+}
+
+/* --- Animations --- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card-zen,
+.card {
+  animation: fadeIn 0.22s ease both;
+}
+
+/* --- Modal Override --- */
+.modal.show {
+  animation: fadeIn 0.18s ease both;
+}
+
+/* --- Misc Utilities --- */
+.cursor-pointer { cursor: pointer; }
+.italic         { font-style: italic; }
+
+/* --- Responsive padding --- */
+@media (max-width: 576px) {
+  main {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}

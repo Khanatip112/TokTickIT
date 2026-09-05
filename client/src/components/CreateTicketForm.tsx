@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
-import { useRequesterContext } from "../context/RequesterContext.js";
+import { useRequesterContext } from "../context/RequesterContext";
 import {
   Category,
   RelatedSystem,
@@ -7,7 +7,7 @@ import {
   getCategories,
   getRelatedSystems,
   createTicket,
-} from "../api.js";
+} from "../api";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
