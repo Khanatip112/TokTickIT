@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { checkSystem, Category } from "./api";
-import { useRequesterContext } from "./context/RequesterContext";
+import { RequesterProvider, useRequesterContext } from "./context/RequesterContext";
 import { Header } from "./components/Header";
 import { CreateTicketForm } from "./components/CreateTicketForm";
 
 type UiState = "idle" | "loading" | "success" | "error";
 
-export default function App() {
+function MainContent() {
   const [state, setState] = useState<UiState>("idle");
   const [categories, setCategories] = useState<Category[]>([]);
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -27,7 +27,8 @@ export default function App() {
   }
 
   return (
-    <div className="d-flex flex-column min-vh-100 bg-light">
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      {/* ส่งแค่ activeTab และ setActiveTab ตามที่ HeaderProps กำหนด */}
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
       <main className="container py-4 flex-grow-1" style={{ maxWidth: 960 }}>
@@ -121,5 +122,13 @@ export default function App() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <RequesterProvider>
+      <MainContent />
+    </RequesterProvider>
   );
 }

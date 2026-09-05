@@ -160,3 +160,21 @@ export async function createTicket(formData: FormData, requesterId: string): Pro
 
   return data;
 }
+
+export async function getMyTickets(requesterId: string): Promise<Ticket[]> {
+  const res = await fetch(`${API_URL}/api/tickets/my-tickets`, {
+    headers: {
+      "x-dev-requester-id": requesterId,
+    },
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    const errorMsg = data.error || `Failed to fetch my tickets (${res.status})`;
+    const error: any = new Error(errorMsg);
+    error.status = res.status;
+    throw error;
+  }
+
+  return data;
+}
