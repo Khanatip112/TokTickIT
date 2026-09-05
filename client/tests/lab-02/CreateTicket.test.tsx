@@ -1,16 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { CreateTicketForm } from "../../src/components/CreateTicketForm.js";
-import * as api from "../../src/api.js";
-import { RequesterProvider } from "../../src/context/RequesterContext.js";
+import { render, screen, fireEvent } from "@testing-library/react";
+import { CreateTicketForm } from "../../src/components/CreateTicketForm";
+import * as api from "../../src/api";
+import { RequesterProvider } from "../../src/context/RequesterContext";
 
 const mockCategories: api.Category[] = [
-  { id: "cat-1", name: "Hardware", description: "Hardware issues" },
-  { id: "cat-2", name: "Software", description: "Software issues" },
+  { id: 1, name: "Hardware", description: "Hardware issues" },
+  { id: 2, name: "Software", description: "Software issues" },
 ];
 
 const mockSystems: api.RelatedSystem[] = [
-  { id: "sys-1", name: "Corporate Laptop", description: "Laptop device" },
+  { id: "1", name: "Corporate Laptop", description: "Laptop device" },
 ];
 
 const mockRequester: api.DevRequester = {
@@ -22,6 +22,7 @@ const mockRequester: api.DevRequester = {
 
 describe("CreateTicketForm Component", () => {
   beforeEach(() => {
+    localStorage.setItem("toktickit_requester_id", "req-1");
     vi.restoreAllMocks();
     vi.spyOn(api, "getCategories").mockResolvedValue(mockCategories);
     vi.spyOn(api, "getRelatedSystems").mockResolvedValue(mockSystems);
@@ -31,7 +32,7 @@ describe("CreateTicketForm Component", () => {
   it("renders read-only requester info, initial status NEW, and form fields", async () => {
     render(
       <RequesterProvider>
-        <CreateTicketForm />
+        <CreateTicketForm onCancel={vi.fn()} onSuccessRedirect={vi.fn()} />
       </RequesterProvider>
     );
 
@@ -44,7 +45,7 @@ describe("CreateTicketForm Component", () => {
   it("displays validation errors when submitting invalid short summary", async () => {
     render(
       <RequesterProvider>
-        <CreateTicketForm />
+        <CreateTicketForm onCancel={vi.fn()} onSuccessRedirect={vi.fn()} />
       </RequesterProvider>
     );
 
@@ -67,14 +68,14 @@ describe("CreateTicketForm Component", () => {
       id: "tkt-123",
       ticketNumber: "TKT-2026-000001",
       requesterId: "req-1",
-      categoryId: "cat-1",
+      categoryId: "1",
       requestedPriority: "HIGH",
       currentStatus: "NEW",
       summary: "Laptop battery drains quickly",
       description: "My laptop battery is draining very fast after last update.",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      category: { id: "cat-1", name: "Hardware" },
+      category: { id: 1, name: "Hardware" },
       attachments: [],
     };
 
@@ -82,7 +83,7 @@ describe("CreateTicketForm Component", () => {
 
     render(
       <RequesterProvider>
-        <CreateTicketForm />
+        <CreateTicketForm onCancel={vi.fn()} onSuccessRedirect={vi.fn()} />
       </RequesterProvider>
     );
 
@@ -90,7 +91,12 @@ describe("CreateTicketForm Component", () => {
 
     const summaryInput = screen.getByLabelText(/Ticket Summary/i);
     const descriptionInput = screen.getByLabelText(/Problem Description/i);
+    const categorySelect = screen.getByLabelText(/Category/i);
     const submitBtn = screen.getByRole("button", { name: /Submit Support Ticket/i });
+
+    // สลับค่าเพื่อกระตุ้นให้เกิด event onChange ใน JSDOM
+    fireEvent.change(categorySelect, { target: { value: "2" } });
+    fireEvent.change(categorySelect, { target: { value: "1" } });
 
     fireEvent.change(summaryInput, { target: { value: "Laptop battery drains quickly" } });
     fireEvent.change(descriptionInput, { target: { value: "My laptop battery is draining very fast after last update." } });
