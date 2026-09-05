@@ -4,6 +4,7 @@ import { RequesterProvider, useRequesterContext } from "./context/RequesterConte
 import { Header } from "./components/Header";
 import { CreateTicketForm } from "./components/CreateTicketForm";
 
+// UI states you must handle for Issue 4: idle, loading, success, error.
 type UiState = "idle" | "loading" | "success" | "error";
 
 function MainContent() {
