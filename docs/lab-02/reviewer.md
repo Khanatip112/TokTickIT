@@ -1,4 +1,4 @@
-# Lab 1 — Peer Review Record
+# Lab 2 — Peer Review Record
 
 **Author:** Khanatip — 67070501008 — GitHub: [@Khanatip112](https://github.com/Khanatip112) \
 **Peer reviewer:** Chetsada — 67070501080 — GitHub: [@JKNIGHTSX](https://github.com/JKNIGHTSX) \
