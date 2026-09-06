@@ -17,14 +17,14 @@ const mockTickets: api.Ticket[] = [
     id: "tkt-1",
     ticketNumber: "TKT-2026-000001",
     requesterId: "req-1",
-    categoryId: "cat-1",
+    categoryId: "1",
     requestedPriority: "HIGH",
     currentStatus: "NEW",
     summary: "Laptop battery drains quickly",
     description: "Laptop battery draining fast.",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    category: { id: "1", name: "Hardware" },
+    category: { id: 1, name: "Hardware" },
     attachments: [],
   },
 ];
@@ -76,8 +76,8 @@ describe("MyTicketsList Component", () => {
     );
 
     expect(await screen.findByText("TKT-2026-000001")).toBeInTheDocument();
-    const viewBtn = await screen.findByRole("button", { name: /View/i });
-    fireEvent.click(viewBtn);
+    const ticketNoCell = await screen.findByText("TKT-2026-000001");
+    fireEvent.click(ticketNoCell);
 
     expect(onViewTicketMock).toHaveBeenCalledWith("tkt-1");
   });
