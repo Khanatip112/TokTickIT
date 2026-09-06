@@ -113,18 +113,32 @@ export async function uploadAttachmentToTicket(ticketId: string, formData: FormD
   return data;
 }
 
-export async function softRemoveAttachment(attachmentId: string, removalReason: string, requesterId: string): Promise<Attachment> {
-  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}/remove`, {
-    method: "PATCH",
+export async function softRemoveAttachment(
+  attachmentId: string,
+  removalReason: string,
+  requesterId: string
+): Promise<Attachment> {
+  // เปลี่ยน Method เป็น DELETE และลบ /soft-remove ท้าย URL ออก
+  const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
+    method: "DELETE",
     headers: {
       "Content-Type": "application/json",
       "x-dev-requester-id": requesterId,
     },
     body: JSON.stringify({ removalReason }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Failed to soft-remove attachment");
-  return data;
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    try {
+      const errorJson = JSON.parse(errorText);
+      throw new Error(errorJson.error || "Failed to soft-remove attachment");
+    } catch {
+      throw new Error(`Server Error (${res.status}): Soft remove action failed`);
+    }
+  }
+
+  return await res.json();
 }
 
 export function getAttachmentDownloadUrl(attachmentId: string, requesterId: string): string {

@@ -267,7 +267,24 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
             <div className="alert alert-danger mb-3">{error}</div>
             <button className="btn btn-outline-secondary btn-sm" onClick={loadTickets}>Try Again</button>
           </div>
+        ) : tickets.length === 0 ? (
+          /* 1. True Empty State: ผู้ใช้นี้ยังไม่มีตั๋วในระบบเลยสักใบ */
+          <div className="py-5 text-center">
+            <div className="fs-1 mb-2">📭</div>
+            <h6 className="fw-bold text-dark mb-1">No tickets yet</h6>
+            <p className="text-muted small mb-3">
+              You haven't submitted any support tickets. Need help with an IT issue?
+            </p>
+            <button
+              className="btn btn-sm px-3 fw-semibold text-white shadow-sm"
+              style={{ backgroundColor: "#006B3C", borderColor: "#006B3C" }}
+              onClick={onCreateTicket}
+            >
+              + Create Ticket
+            </button>
+          </div>
         ) : filteredAndSortedTickets.length === 0 ? (
+          /* 2. Filtered No Results State: มีตั๋วในระบบ แต่ค้นหา/กรองไม่เจอ */
           <div className="py-5 text-center">
             <div className="fs-1 mb-2">🎫</div>
             <h6 className="fw-bold text-dark mb-1">No matching tickets found</h6>
@@ -275,6 +292,7 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
             <button className="btn btn-sm btn-outline-secondary" onClick={handleClearFilters}>Clear All Filters</button>
           </div>
         ) : (
+          /* 3. Data Table Render ตามปกติ */
           <div className="table-responsive">
             <table className="table table-hover align-middle mb-0" style={{ fontSize: "0.82rem" }}>
               <thead style={{ backgroundColor: "#F5F7F6" }}>

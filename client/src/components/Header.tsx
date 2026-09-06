@@ -67,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
               }}
               onClick={() => setActiveTab("create-ticket")}
             >
-              ＋ New Ticket
+              ＋ Create Ticket
             </button>
           </nav>
 

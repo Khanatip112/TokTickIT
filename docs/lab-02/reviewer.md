@@ -58,10 +58,55 @@
 ## Pull Requests I reviewed for my partner
 
 **PR https://github.com/JKNIGHTSX/toktickit/pull/26 **
+
 > My comment: Looks good to me! Everything works as expected. Great job, let's merge this!
 
 > Partner's response (JKNIGHTSX): Thank you!!!!
 
-.
-.
-.
+**PR https://github.com/JKNIGHTSX/toktickit/pull/27 **
+
+> My comment: Migrations and prisma db seed ran smoothly with no duplicates. API endpoints return correct reference data. All tests passed (npm test 9/9). Ready to merge into lab2-staging.
+
+> Partner's response (JKNIGHTSX): 
+
+**PR https://github.com/JKNIGHTSX/toktickit/pull/28 **
+
+> My comment: Database migrations and seed ran successfully.
+Verified Ticket creation, RelatedSystem selection, validation, and ownership logic.
+Checked the Browser Console during UI testing and found no errors.
+All backend automated tests passed.
+Ready to merge into lab2-staging.Great job JK! Keep it up
+
+> Partner's response (JKNIGHTSX): 
+
+**PR https://github.com/JKNIGHTSX/toktickit/pull/29 **
+
+> My comment: Everything looks great Let's keep going bro, we're almost done
+
+> Partner's response (JKNIGHTSX): half way to gooo
+
+**PR https://github.com/JKNIGHTSX/toktickit/pull/30 **
+
+> My comment: All My tickets went smoothly! Great job, JK
+
+> Partner's response (JKNIGHTSX): Thank you khana half way to go.
+
+**PR https://github.com/JKNIGHTSX/toktickit/pull/31 **
+
+> My comment: Ticket Details look good, JK Let's push forward and finish this
+
+> Partner's response (JKNIGHTSX): yeah almost there.
+
+**PR https://github.com/JKNIGHTSX/toktickit/pull/32 **
+
+> My comment: The attachment upload looks good! Let me know if you need any help with the next part
+
+> Partner's response (JKNIGHTSX): I think i forgot some thing and i change it can you check?
+
+**PR https://github.com/JKNIGHTSX/toktickit/pull/33 **
+
+> My comment: I just checked the code. It seems we're missing page.screenshot() to save images to artifacts/lab-02/screenshots/ for Desktop, Tablet, and Mobile sizes
+
+> Partner's response (JKNIGHTSX):i will do it in issue 9 the last one thank you for your checking.
+
+> My comment: I sorry JK U can merge
