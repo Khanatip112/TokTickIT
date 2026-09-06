@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ChangeEvent } from "react";
-import { useRequesterContext } from "../context/RequesterContext.js";
+import { useRequesterContext } from "../context/RequesterContext";
 import {
   Ticket,
   Attachment,
@@ -7,7 +7,7 @@ import {
   uploadAttachmentToTicket,
   softRemoveAttachment,
   getAttachmentDownloadUrl,
-} from "../api.js";
+} from "../api";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -16,6 +16,25 @@ interface TicketDetailViewProps {
   ticketId: string;
   onBackToTickets?: () => void;
 }
+
+const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  NEW: { bg: "#EAF6EF", color: "#006B3C", label: "New" },
+  OPEN: { bg: "#e0f0ff", color: "#0066cc", label: "Open" },
+  IN_PROGRESS: { bg: "#fff3cd", color: "#856404", label: "In Progress" },
+  PENDING: { bg: "#f8d7da", color: "#842029", label: "Pending" },
+  RESOLVED: { bg: "#d1e7dd", color: "#0a3622", label: "Resolved" },
+  CLOSED: { bg: "#e2e3e5", color: "#41464b", label: "Closed" },
+};
+
+// Helper สำหรับดึง Style สีตาม Status
+const getStatusBadgeStyle = (status: string) => {
+  const badge = STATUS_BADGE[status] || { bg: "#e2e3e5", color: "#41464b" };
+  return {
+    backgroundColor: badge.bg,
+    color: badge.color,
+    borderColor: badge.color,
+  };
+};
 
 export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   ticketId,
@@ -63,7 +82,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     fetchDetail();
   }, [ticketId, currentRequester?.id]);
 
-  // Handle Soft Removal Confirmation
   const handleConfirmRemoval = async () => {
     if (!selectedAttachment || !currentRequester) return;
     const trimmedReason = removalReason.trim();
@@ -87,7 +105,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     }
   };
 
-  // Handle Additional Attachment Upload
   const handleUploadFiles = async (filesToAdd: FileList | File[]) => {
     if (!currentRequester || !ticket) return;
     setUploadError(null);
@@ -170,30 +187,48 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
   return (
     <div className="card-zen p-4 shadow-sm" style={{ borderRadius: "0.75rem" }}>
-      {/* Navigation & Header */}
+      {/* 1. Breadcrumb Path */}
+      <nav aria-label="breadcrumb" className="mb-3">
+        <ol className="breadcrumb mb-0">
+          <li className="breadcrumb-item">
+            <button
+              type="button"
+              onClick={onBackToTickets}
+              className="btn btn-link p-0 text-decoration-none fw-semibold"
+              style={{ color: "#006B3C" }}
+            >
+              My Tickets
+            </button>
+          </li>
+          <li className="breadcrumb-item active text-secondary" aria-current="page">
+            Ticket Details
+          </li>
+        </ol>
+      </nav>
+
+      {/* Header Section */}
       <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 pb-3 mb-4 border-bottom">
-        <div className="d-flex align-items-center gap-3">
-          <button className="btn btn-sm btn-zen-outline d-flex align-items-center gap-1" onClick={onBackToTickets}>
-            ← Back to My Tickets
-          </button>
-          <div>
-            <h2 className="h4 fw-bold mb-0 text-zen-primary">{ticket.ticketNumber}</h2>
-            <small className="text-muted">
-              Submitted on {new Date(ticket.createdAt).toLocaleString()}
-            </small>
-          </div>
+        <div>
+          <h2 className="h4 fw-bold mb-0 text-zen-primary">{ticket.ticketNumber}</h2>
+          <small className="text-muted">
+            Submitted on {new Date(ticket.createdAt).toLocaleString()}
+          </small>
         </div>
         <div className="d-flex align-items-center gap-2">
           <span className="badge bg-warning text-dark px-3 py-2 fs-6">
             Priority: {ticket.requestedPriority}
           </span>
-          <span className="badge bg-zen-pale text-zen-primary border border-zen-primary px-3 py-2 fs-6">
+          {/* 2. Status Badge พร้อมสีสว่างชัดเจน */}
+          <span
+            className="badge px-3 py-2 fs-6 fw-bold border"
+            style={getStatusBadgeStyle(ticket.currentStatus)}
+          >
             Status: {ticket.currentStatus}
           </span>
         </div>
       </div>
 
-      {/* Read-Only Ticket Meta Information Grid */}
+      {/* Readonly Grid */}
       <div className="card border-0 bg-zen-readonly p-3 mb-4" style={{ borderRadius: "0.5rem" }}>
         <div className="row g-3">
           <div className="col-md-3">
@@ -228,10 +263,11 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           </div>
           <div className="col-md-3">
             <label className="form-label text-muted small mb-1">Requester</label>
+            {/* 3. แสดงเฉพาะชื่อ Requester (ตัด Email ออก) */}
             <input
               type="text"
               className="form-control form-control-sm bg-zen-readonly text-dark fw-semibold"
-              value={ticket.requester?.name ? `${ticket.requester.name} (${ticket.requester.email})` : "N/A"}
+              value={ticket.requester?.name || "N/A"}
               readOnly
               disabled
             />
@@ -239,7 +275,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
         </div>
       </div>
 
-      {/* Read-Only Ticket Content */}
       <div className="mb-4">
         <label className="form-label fw-bold text-dark">Ticket Summary</label>
         <div className="p-3 bg-white border rounded fw-semibold text-dark">{ticket.summary}</div>
@@ -252,7 +287,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
         </div>
       </div>
 
-      {/* Attachments Section */}
       <div className="border-top pt-4 mt-4">
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h5 className="fw-bold mb-0 text-zen-primary d-flex align-items-center gap-2">
@@ -283,7 +317,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
         {uploadError && <div className="alert alert-danger p-2 small mb-3">{uploadError}</div>}
 
-        {/* Active Attachments List */}
         <div className="mb-4">
           <h6 className="text-muted small fw-semibold text-uppercase mb-2">Active Supporting Files</h6>
           {activeAttachments.length === 0 ? (
@@ -330,7 +363,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           )}
         </div>
 
-        {/* Soft-Removed Attachments Metadata Section */}
         {removedAttachments.length > 0 && (
           <div className="mt-4 pt-3 border-top">
             <h6 className="text-muted small fw-semibold text-uppercase mb-2">
@@ -365,7 +397,6 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
         )}
       </div>
 
-      {/* Soft Removal Confirmation Modal */}
       {selectedAttachment && (
         <div
           className="modal show d-block"

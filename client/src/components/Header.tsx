@@ -21,13 +21,11 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
           zIndex: 1000,
         }}
       >
-        <div
-          className="d-flex align-items-center justify-content-between flex-wrap gap-2 py-2 px-4"
-          style={{ maxWidth: 1100, margin: "0 auto" }}
-        >
+        {/* เปลี่ยนจาก maxWidth: 1100 เป็น container-fluid px-4 เพื่อให้ขยายชิดขอบจออย่างสมดุล */}
+        <div className="container-fluid px-4 d-flex align-items-center justify-content-between flex-wrap gap-2 py-2">
           {/* Brand */}
           <div className="d-flex align-items-center gap-2">
-            <span style={{ fontSize: "1.5rem" }}>🎫</span>
+
             <div>
               <h1
                 className="mb-0 fw-bold text-white"
@@ -45,20 +43,17 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
           <nav className="d-flex gap-1" role="navigation" aria-label="Main navigation">
             <button
               id="nav-tab-my-tickets"
-              className={`btn btn-sm px-3 py-2 fw-semibold ${
-                activeTab === "my-tickets"
-                  ? "bg-white text-zen-primary"
-                  : "text-white border-white border-opacity-25"
-              }`}
+              className={`btn btn-sm px-3 py-2 fw-semibold`}
               style={{
                 borderRadius: "0.5rem",
                 background: activeTab === "my-tickets" ? "#fff" : "rgba(255,255,255,0.12)",
                 border: activeTab === "my-tickets" ? "none" : "1px solid rgba(255,255,255,0.25)",
+                color: activeTab === "my-tickets" ? "#006B3C" : "#fff",
                 transition: "all 0.2s ease",
               }}
               onClick={() => setActiveTab("my-tickets")}
             >
-              📋 My Tickets
+              My Tickets
             </button>
             <button
               id="nav-tab-create-ticket"

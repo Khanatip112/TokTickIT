@@ -5,7 +5,7 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
     page,
   }) => {
     // -----------------------------------------------------------------------
-    // DESKTOP VIEWPORT (>= 992px)
+    // 1. DESKTOP VIEWPORT (1280 x 800)
     // -----------------------------------------------------------------------
     await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -16,9 +16,14 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
     const devIdentityBtn = page.locator("#dev-identity-switcher-btn").first();
     await expect(devIdentityBtn).toBeVisible({ timeout: 10000 });
 
-    // Select Jennifer Anderson (Requester A)
+    // [Desktop - 1/4] Capture Dev Selector Modal
     await devIdentityBtn.click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(400);
+    await expect(page.locator("text=Development Identity Context").first()).toBeVisible();
+    await page.screenshot({ path: "artifacts/lab-02/screenshots/desktop-dev-selector.png" });
+    await page.screenshot({ path: "artifacts/lab-02/screenshots/dev-selector/desktop.png" });
+
+    // Select Jennifer Anderson (Requester A)
     const jenniferBtn = page.locator("button:has-text('Jennifer Anderson')").first();
     if (await jenniferBtn.isVisible()) {
       await jenniferBtn.click();
@@ -28,7 +33,7 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
     const navMyTickets = page.locator("#nav-tab-my-tickets").first();
     const navCreateTicket = page.locator("#nav-tab-create-ticket").first();
 
-    // 1. Capture Desktop - My Tickets
+    // [Desktop - 2/4] Capture My Tickets List
     if (await navMyTickets.isVisible()) {
       await navMyTickets.click();
       await page.waitForTimeout(500);
@@ -42,7 +47,7 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
       await page.waitForTimeout(500);
     }
 
-    // 2. Capture Desktop - Create Ticket Form
+    // [Desktop - 3/4] Capture Create Ticket Form
     await page.screenshot({ path: "artifacts/lab-02/screenshots/desktop-create-ticket.png" });
     await page.screenshot({ path: "artifacts/lab-02/screenshots/create-ticket/desktop.png" });
 
@@ -89,14 +94,14 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
     }
 
     // Verify ticket appears in list
-    await expect(page.locator("text=E2E Test - Laptop Screen Flickering Issue").first()).toBeVisible({ timeout: 10000 });
+    const ticketRow = page.locator("tr:has-text('E2E Test - Laptop Screen Flickering Issue')").first();
+    await expect(ticketRow).toBeVisible({ timeout: 10000 });
 
-    // Step 4: Open Ticket Detail View
-    const viewTicketBtn = page.locator("button:has-text('View')").first();
-    await viewTicketBtn.click();
+    // Step 4: Open Ticket Detail View (กดที่แถบตาราง)
+    await ticketRow.click();
     await page.waitForTimeout(500);
 
-    // 3. Capture Desktop - Ticket Detail View
+    // [Desktop - 4/4] Capture Ticket Detail View
     await page.screenshot({ path: "artifacts/lab-02/screenshots/desktop-ticket-detail.png" });
     await page.screenshot({ path: "artifacts/lab-02/screenshots/ticket-detail/desktop.png" });
 
@@ -143,48 +148,96 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
     }
 
     // -----------------------------------------------------------------------
-    // TABLET VIEWPORT (768px - 991px)
+    // 2. TABLET VIEWPORT (834 x 1112)
     // -----------------------------------------------------------------------
     await page.setViewportSize({ width: 834, height: 1112 });
 
+    // ย้อนกลับมาหน้า My Tickets List ให้ชัวร์ก่อนแคปรูป
+    if (await navMyTickets.isVisible()) await navMyTickets.click();
+    await page.waitForTimeout(500);
+
+    // [Tablet - 1/4] Capture Dev Selector Modal
+    if (await devIdentityBtn.isVisible()) {
+      await devIdentityBtn.click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: "artifacts/lab-02/screenshots/tablet-dev-selector.png" });
+      await page.screenshot({ path: "artifacts/lab-02/screenshots/dev-selector/tablet.png" });
+
+      const closeModalBtn = page.locator("button:has-text('Close')").first();
+      if (await closeModalBtn.isVisible()) {
+        await closeModalBtn.click();
+      } else {
+        await page.keyboard.press("Escape");
+      }
+      await page.waitForTimeout(300);
+    }
+
+    // [Tablet - 2/4] Capture My Tickets List (ตารางรวม)
     if (await navMyTickets.isVisible()) await navMyTickets.click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: "artifacts/lab-02/screenshots/tablet-my-tickets.png" });
     await page.screenshot({ path: "artifacts/lab-02/screenshots/my-tickets/tablet.png" });
 
+    // [Tablet - 3/4] Capture Create Ticket
     if (await navCreateTicket.isVisible()) await navCreateTicket.click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: "artifacts/lab-02/screenshots/tablet-create-ticket.png" });
     await page.screenshot({ path: "artifacts/lab-02/screenshots/create-ticket/tablet.png" });
 
+    // [Tablet - 4/4] Capture Ticket Detail
     if (await navMyTickets.isVisible()) await navMyTickets.click();
     await page.waitForTimeout(500);
-    if (await viewTicketBtn.isVisible()) {
-      await viewTicketBtn.click();
+    const tabletTicketRow = page.locator("tr:has-text('E2E Test - Laptop Screen Flickering Issue')").first();
+    if (await tabletTicketRow.isVisible()) {
+      await tabletTicketRow.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: "artifacts/lab-02/screenshots/tablet-ticket-detail.png" });
       await page.screenshot({ path: "artifacts/lab-02/screenshots/ticket-detail/tablet.png" });
     }
 
     // -----------------------------------------------------------------------
-    // MOBILE VIEWPORT (< 768px)
+    // 3. MOBILE VIEWPORT (375 x 812)
     // -----------------------------------------------------------------------
     await page.setViewportSize({ width: 375, height: 812 });
 
+    // ย้อนกลับมาหน้า My Tickets List ให้ชัวร์ก่อนแคปรูป
+    if (await navMyTickets.isVisible()) await navMyTickets.click();
+    await page.waitForTimeout(500);
+
+    // [Mobile - 1/4] Capture Dev Selector Modal
+    if (await devIdentityBtn.isVisible()) {
+      await devIdentityBtn.click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: "artifacts/lab-02/screenshots/mobile-dev-selector.png" });
+      await page.screenshot({ path: "artifacts/lab-02/screenshots/dev-selector/mobile.png" });
+
+      const closeModalBtn = page.locator("button:has-text('Close')").first();
+      if (await closeModalBtn.isVisible()) {
+        await closeModalBtn.click();
+      } else {
+        await page.keyboard.press("Escape");
+      }
+      await page.waitForTimeout(300);
+    }
+
+    // [Mobile - 2/4] Capture My Tickets List (ตารางรวม)
     if (await navMyTickets.isVisible()) await navMyTickets.click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: "artifacts/lab-02/screenshots/mobile-my-tickets.png" });
     await page.screenshot({ path: "artifacts/lab-02/screenshots/my-tickets/mobile.png" });
 
+    // [Mobile - 3/4] Capture Create Ticket
     if (await navCreateTicket.isVisible()) await navCreateTicket.click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: "artifacts/lab-02/screenshots/mobile-create-ticket.png" });
     await page.screenshot({ path: "artifacts/lab-02/screenshots/create-ticket/mobile.png" });
 
+    // [Mobile - 4/4] Capture Ticket Detail
     if (await navMyTickets.isVisible()) await navMyTickets.click();
     await page.waitForTimeout(500);
-    if (await viewTicketBtn.isVisible()) {
-      await viewTicketBtn.click();
+    const mobileTicketRow = page.locator("tr:has-text('E2E Test - Laptop Screen Flickering Issue')").first();
+    if (await mobileTicketRow.isVisible()) {
+      await mobileTicketRow.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: "artifacts/lab-02/screenshots/mobile-ticket-detail.png" });
       await page.screenshot({ path: "artifacts/lab-02/screenshots/ticket-detail/mobile.png" });

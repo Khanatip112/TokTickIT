@@ -26,8 +26,8 @@ export const DevSelectorModal: React.FC<DevSelectorModalProps> = ({ isOpen, onCl
       aria-modal="true"
       aria-labelledby="devSelectorModalTitle"
     >
-      <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: 480 }}>
-        <div className="modal-content shadow-lg border-0" style={{ borderRadius: "0.875rem" }}>
+      <div className="modal-dialog modal-dialog-centered px-2" style={{ maxWidth: 480 }}>
+        <div className="modal-content shadow-lg border-0 overflow-hidden" style={{ borderRadius: "0.875rem" }}>
           <div
             className="modal-header text-white"
             style={{ background: "linear-gradient(135deg, #006B3C 0%, #0B7A46 100%)", borderRadius: "0.875rem 0.875rem 0 0" }}
@@ -46,9 +46,9 @@ export const DevSelectorModal: React.FC<DevSelectorModalProps> = ({ isOpen, onCl
             />
           </div>
 
-          <div className="modal-body p-4">
+          <div className="modal-body p-3 p-sm-4">
             <div
-              className="alert mb-4 py-2 px-3 small border-0"
+              className="alert mb-3 py-2 px-3 small border-0 text-break"
               style={{ backgroundColor: "#EAF6EF", color: "#006B3C", borderLeft: "4px solid #006B3C" }}
             >
               <strong>⚠️ Dev-only feature:</strong> No real authentication is used. Switching identity
@@ -65,31 +65,42 @@ export const DevSelectorModal: React.FC<DevSelectorModalProps> = ({ isOpen, onCl
                     <button
                       key={requester.id}
                       id={`dev-requester-${requester.id}`}
-                      className={`btn text-start p-3 w-100 border ${
-                        isActive ? "btn-zen-primary" : "btn-outline-secondary"
-                      }`}
+                      className={`btn text-start p-3 w-100 border ${isActive ? "btn-zen-primary" : "btn-outline-secondary"
+                        }`}
                       style={{ borderRadius: "0.625rem", transition: "all 0.15s ease" }}
                       onClick={() => handleSelect(requester)}
                     >
-                      <div className="d-flex align-items-center gap-3">
+                      <div className="d-flex align-items-center gap-2 gap-sm-3 w-100 min-w-0">
+                        {/* Avatar Circle */}
                         <div
                           className="rounded-circle d-flex align-items-center justify-content-center fw-bold text-white flex-shrink-0"
                           style={{
-                            width: 40,
-                            height: 40,
+                            width: 38,
+                            height: 38,
                             background: isActive ? "rgba(255,255,255,0.25)" : "#006B3C",
-                            fontSize: "0.85rem",
+                            fontSize: "0.82rem",
                           }}
                         >
                           {requester.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                         </div>
-                        <div>
-                          <div className="fw-semibold">{requester.name}</div>
-                          <small className={isActive ? "opacity-75" : "text-muted"}>
+
+                        {/* Text Container - มี min-w-0 และ text-break ป้องกันข้อความล้น */}
+                        <div className="flex-grow-1 min-w-0">
+                          <div className="fw-semibold text-truncate">{requester.name}</div>
+                          <small
+                            className={`d-block text-break ${isActive ? "opacity-75" : "text-muted"}`}
+                            style={{ fontSize: "0.75rem", lineHeight: "1.2" }}
+                          >
                             {requester.email} {requester.department ? `· ${requester.department}` : ""}
                           </small>
                         </div>
-                        {isActive && <span className="ms-auto badge bg-white text-success">Active</span>}
+
+                        {/* Active Badge - ล็อค flex-shrink-0 อยู่ภายในขอบขวาสวยงาม */}
+                        {isActive && (
+                          <span className="badge bg-white text-success flex-shrink-0 ms-1 ms-sm-2 shadow-sm">
+                            Active
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -98,7 +109,7 @@ export const DevSelectorModal: React.FC<DevSelectorModalProps> = ({ isOpen, onCl
             )}
           </div>
 
-          <div className="modal-footer border-top-0 px-4 pb-4">
+          <div className="modal-footer border-top-0 px-3 px-sm-4 pb-3 pb-sm-4">
             <button className="btn btn-outline-secondary w-100" onClick={onClose}>
               Close
             </button>

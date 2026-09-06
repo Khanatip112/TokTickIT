@@ -53,7 +53,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
         ]);
         setCategories(cats);
         setRelatedSystems(syss);
-        if (cats.length > 0) setCategoryId(cats[0].id);
+        if (cats.length > 0) setCategoryId(cats[0].id.toString());
       } catch (err: any) {
         console.error("Error loading reference data:", err);
       } finally {
@@ -165,7 +165,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
     return (
       <div className="card-zen p-4 border-0 shadow-sm" style={{ borderRadius: "0.75rem" }}>
         <div className="alert alert-success border-0 bg-zen-pale text-zen-primary p-4 rounded-3 text-center mb-4">
-          <div className="fs-1 mb-2">🎉</div>
+
           <h4 className="fw-bold mb-2">Ticket Submitted Successfully!</h4>
           <p className="mb-1 text-secondary">
             Official Ticket Number:{" "}
@@ -226,9 +226,6 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
           <h2 className="h4 fw-bold mb-1 text-zen-primary">Create Support Ticket</h2>
           <p className="text-muted mb-0 small">Describe your issue and attach supporting files for IT triage.</p>
         </div>
-        <span className="badge bg-zen-pale text-zen-primary px-3 py-2 border border-zen-primary rounded-pill">
-          Requester Portal
-        </span>
       </div>
 
       {/* Global Server Error Alert */}
