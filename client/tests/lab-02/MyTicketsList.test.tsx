@@ -18,26 +18,46 @@ const mockTickets: api.Ticket[] = [
     ticketNumber: "TKT-2026-000001",
     requesterId: "req-1",
     categoryId: "1",
+    relatedSystemId: "1",
     requestedPriority: "HIGH",
     currentStatus: "NEW",
     summary: "Laptop battery drains quickly",
     description: "Laptop battery draining fast.",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    category: { id: 1, name: "Hardware" },
+    category: { id: "1", name: "Hardware" },
     attachments: [],
   },
 ];
+
+const mockPagination: api.Pagination = {
+  totalCount: 1,
+  page: 1,
+  pageSize: 8,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
+
+const emptyPagination: api.Pagination = {
+  totalCount: 0,
+  page: 1,
+  pageSize: 8,
+  totalPages: 1,
+  hasNextPage: false,
+  hasPreviousPage: false,
+};
 
 describe("MyTicketsList Component", () => {
   beforeEach(() => {
     localStorage.setItem("toktickit_requester_id", "req-1");
     vi.restoreAllMocks();
     vi.spyOn(api, "getDevRequesters").mockResolvedValue([mockRequester]);
+    vi.spyOn(api, "getCategories").mockResolvedValue([]);
   });
 
   it("renders list of tickets owned by requester", async () => {
-    vi.spyOn(api, "getMyTickets").mockResolvedValue(mockTickets);
+    vi.spyOn(api, "getMyTickets").mockResolvedValue({ data: mockTickets, pagination: mockPagination });
 
     render(
       <RequesterProvider>
@@ -45,12 +65,12 @@ describe("MyTicketsList Component", () => {
       </RequesterProvider>
     );
 
-    expect(await screen.findByText("TKT-2026-000001")).toBeInTheDocument();
-    expect(screen.getByText("Laptop battery drains quickly")).toBeInTheDocument();
+    expect((await screen.findAllByText("TKT-2026-000001")).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Laptop battery drains quickly").length).toBeGreaterThan(0);
   });
 
   it("shows empty state when requester has no tickets", async () => {
-    vi.spyOn(api, "getMyTickets").mockResolvedValue([]);
+    vi.spyOn(api, "getMyTickets").mockResolvedValue({ data: [], pagination: emptyPagination });
 
     render(
       <RequesterProvider>
@@ -65,8 +85,8 @@ describe("MyTicketsList Component", () => {
     });
   });
 
-  it("calls onViewTicket callback when view button clicked", async () => {
-    vi.spyOn(api, "getMyTickets").mockResolvedValue(mockTickets);
+  it("calls onViewTicket callback when a row is clicked", async () => {
+    vi.spyOn(api, "getMyTickets").mockResolvedValue({ data: mockTickets, pagination: mockPagination });
     const onViewTicketMock = vi.fn();
 
     render(
@@ -75,9 +95,8 @@ describe("MyTicketsList Component", () => {
       </RequesterProvider>
     );
 
-    expect(await screen.findByText("TKT-2026-000001")).toBeInTheDocument();
-    const ticketNoCell = await screen.findByText("TKT-2026-000001");
-    fireEvent.click(ticketNoCell);
+    const ticketNoCells = await screen.findAllByText("TKT-2026-000001");
+    fireEvent.click(ticketNoCells[0]);
 
     expect(onViewTicketMock).toHaveBeenCalledWith("tkt-1");
   });

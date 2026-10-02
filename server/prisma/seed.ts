@@ -22,19 +22,19 @@ async function main() {
 
   // 2. Seed Related Systems
   const relatedSystems = [
-    { name: "Email", description: "University email and calendar services" },
-    { name: "Campus Wi-Fi", description: "On-campus wireless network infrastructure" },
-    { name: "VPN", description: "Virtual Private Network secure remote access" },
-    { name: "LEB2 App", description: "Learning Environment Building 2 platform" },
-    { name: "Grade Submission App", description: "Academic grade submission portal" },
-    { name: "Printer", description: "Campus network printers and print servers" },
+    { name: "Email", code: "SYS-EMAIL", description: "University email and calendar services" },
+    { name: "Campus Wi-Fi", code: "SYS-WIFI", description: "On-campus wireless network infrastructure" },
+    { name: "VPN", code: "SYS-VPN", description: "Virtual Private Network secure remote access" },
+    { name: "LEB2 App", code: "SYS-LEB2", description: "Learning Environment Building 2 platform" },
+    { name: "Grade Submission App", code: "SYS-GRADES", description: "Academic grade submission portal" },
+    { name: "Printer", code: "SYS-PRINT", description: "Campus network printers and print servers" },
   ];
 
   for (const sys of relatedSystems) {
     await prisma.relatedSystem.upsert({
       where: { name: sys.name },
-      update: { description: sys.description },
-      create: { name: sys.name, description: sys.description },
+      update: { code: sys.code, description: sys.description },
+      create: { name: sys.name, code: sys.code, description: sys.description },
     });
   }
   console.log("Related Systems seeded successfully.");

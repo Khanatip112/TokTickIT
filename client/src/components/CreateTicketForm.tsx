@@ -54,6 +54,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
         setCategories(cats);
         setRelatedSystems(syss);
         if (cats.length > 0) setCategoryId(cats[0].id.toString());
+        if (syss.length > 0) setRelatedSystemId(syss[0].id.toString());
       } catch (err: any) {
         console.error("Error loading reference data:", err);
       } finally {
@@ -101,6 +102,10 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
       errors.categoryId = "Category selection is required.";
     }
 
+    if (!relatedSystemId) {
+      errors.relatedSystemId = "Related System selection is required.";
+    }
+
     const trimmedSummary = summary.trim();
     if (!trimmedSummary) {
       errors.summary = "Ticket Summary is required.";
@@ -139,7 +144,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
       const formData = new FormData();
       formData.append("requesterId", currentRequester.id);
       formData.append("categoryId", categoryId);
-      if (relatedSystemId) formData.append("relatedSystemId", relatedSystemId);
+      formData.append("relatedSystemId", relatedSystemId);
       formData.append("requestedPriority", requestedPriority);
       formData.append("summary", summary.trim());
       formData.append("description", description.trim());
@@ -308,22 +313,28 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
 
           <div className="col-md-4">
             <label htmlFor="relatedSystemId" className="form-label fw-semibold">
-              Related System <span className="text-muted fw-normal">(Optional)</span>
+              Related System <span className="text-danger">*</span>
             </label>
             <select
               id="relatedSystemId"
-              className="form-select"
+              className={`form-select ${fieldErrors.relatedSystemId ? "is-invalid" : ""}`}
               value={relatedSystemId}
-              onChange={(e) => setRelatedSystemId(e.target.value)}
+              onChange={(e) => {
+                setRelatedSystemId(e.target.value);
+                if (fieldErrors.relatedSystemId) setFieldErrors({ ...fieldErrors, relatedSystemId: "" });
+              }}
               disabled={isDataLoading || isSubmitting}
             >
-              <option value="">-- None / Not Applicable --</option>
+              <option value="">-- Select a Related System --</option>
               {relatedSystems.map((sys) => (
                 <option key={sys.id} value={sys.id}>
                   {sys.name}
                 </option>
               ))}
             </select>
+            {fieldErrors.relatedSystemId && (
+              <div className="invalid-feedback">{fieldErrors.relatedSystemId}</div>
+            )}
           </div>
 
           <div className="col-md-4">

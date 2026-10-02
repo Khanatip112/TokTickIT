@@ -331,9 +331,9 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
                   <div className="d-flex align-items-center gap-3">
                     <span className="fs-4">📄</span>
                     <div>
-                      <strong className="d-block text-dark">{att.fileName}</strong>
+                      <strong className="d-block text-dark">{att.originalName || att.fileName}</strong>
                       <small className="text-muted">
-                        {(att.fileSize / 1024).toFixed(1)} KB • Uploaded {new Date(att.createdAt).toLocaleDateString()}
+                        {(att.sizeBytes / 1024).toFixed(1)} KB • Uploaded {new Date(att.createdAt).toLocaleDateString()}
                       </small>
                     </div>
                   </div>
@@ -378,8 +378,8 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
                   <div className="d-flex align-items-center justify-content-between mb-2">
                     <div className="d-flex align-items-center gap-2">
                       <span className="badge bg-secondary text-white">Soft Removed</span>
-                      <strong className="text-dark text-decoration-line-through">{att.fileName}</strong>
-                      <small>({(att.fileSize / 1024).toFixed(1)} KB)</small>
+                      <strong className="text-dark text-decoration-line-through">{att.originalName || att.fileName}</strong>
+                      <small>({(att.sizeBytes / 1024).toFixed(1)} KB)</small>
                     </div>
                     <button className="btn btn-sm btn-secondary disabled" disabled>
                       Download Unavailable

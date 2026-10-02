@@ -1,7 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 export interface Category {
-  id: number;
+  id: string;
   name: string;
   description?: string | null;
 }
@@ -9,6 +9,7 @@ export interface Category {
 export interface RelatedSystem {
   id: string;
   name: string;
+  code: string;
   description?: string | null;
 }
 
@@ -23,8 +24,9 @@ export interface Attachment {
   id: string;
   ticketId: string;
   fileName: string;
+  originalName: string;
   filePath: string;
-  fileSize: number;
+  sizeBytes: number;
   mimeType: string;
   isRemoved: boolean;
   removedAt?: string | null;
@@ -37,7 +39,7 @@ export interface Ticket {
   ticketNumber: string;
   requesterId: string;
   categoryId: string;
-  relatedSystemId?: string | null;
+  relatedSystemId: string;
   requestedPriority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   itPriority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null;
   currentStatus: "NEW" | "OPEN" | "IN_PROGRESS" | "PENDING" | "RESOLVED" | "CLOSED";
@@ -54,6 +56,31 @@ export interface Ticket {
 export interface SystemStatus {
   online: boolean;
   categories: Category[];
+}
+
+export interface Pagination {
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface PaginatedTickets {
+  data: Ticket[];
+  pagination: Pagination;
+}
+
+export interface TicketQueryParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  categoryId?: string;
+  requestedPriority?: string;
+  currentStatus?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
 }
 
 // Issue 2 + Issue 4 — call the backend.
@@ -145,12 +172,6 @@ export function getAttachmentDownloadUrl(attachmentId: string, requesterId: stri
   return `${API_URL}/api/attachments/${attachmentId}/download?requesterId=${encodeURIComponent(requesterId)}`;
 }
 
-export interface RelatedSystem {
-  id: string;
-  name: string;
-  description?: string | null;
-}
-
 export async function getRelatedSystems(): Promise<RelatedSystem[]> {
   const res = await fetch(`${API_URL}/api/related-systems`);
   if (!res.ok) {
@@ -180,8 +201,22 @@ export async function createTicket(formData: FormData, requesterId: string): Pro
   return data;
 }
 
-export async function getMyTickets(requesterId: string): Promise<Ticket[]> {
-  const res = await fetch(`${API_URL}/api/tickets`, {
+export async function getMyTickets(
+  requesterId: string,
+  params: TicketQueryParams = {}
+): Promise<PaginatedTickets> {
+  const query = new URLSearchParams();
+  if (params.page != null) query.set("page", String(params.page));
+  if (params.pageSize != null) query.set("pageSize", String(params.pageSize));
+  if (params.search) query.set("search", params.search);
+  if (params.categoryId) query.set("categoryId", params.categoryId);
+  if (params.requestedPriority) query.set("requestedPriority", params.requestedPriority);
+  if (params.currentStatus) query.set("currentStatus", params.currentStatus);
+  if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.sortOrder) query.set("sortOrder", params.sortOrder);
+
+  const qs = query.toString();
+  const res = await fetch(`${API_URL}/api/tickets${qs ? `?${qs}` : ""}`, {
     headers: {
       "x-dev-requester-id": requesterId,
     },
@@ -194,5 +229,5 @@ export async function getMyTickets(requesterId: string): Promise<Ticket[]> {
     error.status = res.status;
     throw error;
   }
-  return data;
+  return data as PaginatedTickets;
 }

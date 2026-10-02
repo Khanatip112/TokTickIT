@@ -25,10 +25,9 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
 
     // Select Jennifer Anderson (Requester A)
     const jenniferBtn = page.locator("button:has-text('Jennifer Anderson')").first();
-    if (await jenniferBtn.isVisible()) {
-      await jenniferBtn.click();
-      await page.waitForTimeout(500);
-    }
+    await jenniferBtn.waitFor({ state: "visible", timeout: 10000 });
+    await jenniferBtn.click();
+    await page.waitForTimeout(500);
 
     const navMyTickets = page.locator("#nav-tab-my-tickets").first();
     const navCreateTicket = page.locator("#nav-tab-create-ticket").first();
@@ -233,11 +232,15 @@ test.describe("Lab 2 Requester E2E Ticket Flow & Screenshots", () => {
     await page.screenshot({ path: "artifacts/lab-02/screenshots/create-ticket/mobile.png" });
 
     // [Mobile - 4/4] Capture Ticket Detail
+    // On mobile the My Tickets table is hidden and replaced by a stacked card
+    // list, so we must click the card button rather than a table row.
     if (await navMyTickets.isVisible()) await navMyTickets.click();
     await page.waitForTimeout(500);
-    const mobileTicketRow = page.locator("tr:has-text('E2E Test - Laptop Screen Flickering Issue')").first();
-    if (await mobileTicketRow.isVisible()) {
-      await mobileTicketRow.click();
+    const mobileTicketCard = page
+      .locator("button:has-text('E2E Test - Laptop Screen Flickering Issue')")
+      .first();
+    if (await mobileTicketCard.isVisible()) {
+      await mobileTicketCard.click();
       await page.waitForTimeout(500);
       await page.screenshot({ path: "artifacts/lab-02/screenshots/mobile-ticket-detail.png" });
       await page.screenshot({ path: "artifacts/lab-02/screenshots/ticket-detail/mobile.png" });

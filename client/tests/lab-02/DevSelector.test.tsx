@@ -34,7 +34,18 @@ describe("Dev Requester Identity Context & Selector", () => {
     localStorage.clear();
     vi.restoreAllMocks();
     // Prevent real API calls from MyTicketsList component
-    vi.spyOn(api, "getMyTickets").mockResolvedValue([]);
+    vi.spyOn(api, "getMyTickets").mockResolvedValue({
+      data: [],
+      pagination: {
+        totalCount: 0,
+        page: 1,
+        pageSize: 8,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
+    });
+    vi.spyOn(api, "getCategories").mockResolvedValue([]);
   });
 
   it("hydrates first active requester when localStorage is empty", async () => {

@@ -45,8 +45,8 @@ toktickit/
 │       ├── lab-01/         # Lab 1 App & Health check tests
 │       └── lab-02/         # Lab 2 Form, Table, and Attachment component tests
 ├── docs/                   # Specifications, API contracts, test matrices, and reflections
-│   ├── lab-01/             # Lab 1 docs (ai_use.md, reviewer.md, tests.md)
-│   └── lab-02/             # Lab 2 specs (api-spec.md, specification.md, tests.md, ui-spec.md, ai_use.md, reviewer.md)
+│   ├── lab-01/             # Lab 1 docs (ai-use.md, reviewer.md, tests.md)
+│   └── lab-02/             # Lab 2 specs (api-spec.md, specification.md, tests.md, ui-spec.md, ai-use.md, reviewer.md)
 ├── e2e/                    # Playwright end-to-end automation test suites
 │   └── lab-02/             # E2E Requester flow & responsive screenshot tests
 ├── server/                 # Express + Node.js + TypeScript backend
@@ -57,8 +57,6 @@ toktickit/
 │       ├── lab-01/         # Lab 1 Health & Category API tests
 │       └── lab-02/         # Lab 2 Ticket & Attachment API tests
 ├── .gitignore              # Git ignore configuration
-├── ai-use.md               # Root AI use log & reflection
-├── reviewer.md             # Definition of Done (DoD) audit checklist
 └── README.md               # Unified project documentation
 ```
 
@@ -170,7 +168,7 @@ npx playwright test e2e/lab-02/
 ## 📑 Course Documentation References
 
 ### Lab 1 Documentation (`docs/lab-01/`)
-- `docs/lab-01/ai_use.md`: Lab 1 AI Prompts & Reflection Log
+- `docs/lab-01/ai-use.md`: Lab 1 AI Prompts & Reflection Log
 - `docs/lab-01/reviewer.md`: Lab 1 Peer Review & DoD Checklist
 - `docs/lab-01/tests.md`: Lab 1 Initial Test Plan
 
@@ -179,5 +177,5 @@ npx playwright test e2e/lab-02/
 - `docs/lab-02/specification.md`: Functional Requirements & Business Rules
 - `docs/lab-02/tests.md`: Test Plan & Acceptance Criteria Traceability Matrix
 - `docs/lab-02/ui-spec.md`: Zen Green Design System Tokens & Responsive Breakpoints
-- `ai-use.md`: Root Generative AI Usage Log & Personal Reflection
-- `reviewer.md`: Final Release DoD Audit & Verification Checklist
+- `docs/lab-02/ai-use.md`: Generative AI Usage Log & Personal Reflection
+- `docs/lab-02/reviewer.md`: Final Release DoD Audit & Verification Checklist

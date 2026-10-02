@@ -16,6 +16,7 @@ describe("Ticket Detail & Soft Removal APIs", () => {
     userBId = activeUsers[1].id;
 
     const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
 
     // Create a ticket for User A with an active attachment
     const ticket = await prisma.ticket.create({
@@ -23,6 +24,7 @@ describe("Ticket Detail & Soft Removal APIs", () => {
         ticketNumber: `TKT-TEST-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         requesterId: userAId,
         categoryId: category!.id,
+        relatedSystemId: system!.id,
         requestedPriority: "MEDIUM",
         currentStatus: "NEW",
         summary: "Test Ticket for Detail View",
@@ -30,8 +32,9 @@ describe("Ticket Detail & Soft Removal APIs", () => {
         attachments: {
           create: {
             fileName: "test_doc.pdf",
+            originalName: "test_doc.pdf",
             filePath: "uploads/test_doc.pdf",
-            fileSize: 1024,
+            sizeBytes: 1024,
             mimeType: "application/pdf",
             isRemoved: false,
           },

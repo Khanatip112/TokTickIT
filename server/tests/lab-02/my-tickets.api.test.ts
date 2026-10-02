@@ -32,6 +32,7 @@ describe("My Tickets API (Data Isolation)", () => {
     userBId = activeUsers[1].id;
 
     const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
 
     // Create ticket for User A
     const ticketA = await prisma.ticket.create({
@@ -39,6 +40,7 @@ describe("My Tickets API (Data Isolation)", () => {
         ticketNumber: `TKT-ISO-A-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         requesterId: userAId,
         categoryId: category!.id,
+        relatedSystemId: system!.id,
         requestedPriority: "HIGH",
         currentStatus: "NEW",
         summary: "User A Isolation Test Ticket",
@@ -53,6 +55,7 @@ describe("My Tickets API (Data Isolation)", () => {
         ticketNumber: `TKT-ISO-B-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         requesterId: userBId,
         categoryId: category!.id,
+        relatedSystemId: system!.id,
         requestedPriority: "LOW",
         currentStatus: "NEW",
         summary: "User B Isolation Test Ticket",
@@ -68,9 +71,10 @@ describe("My Tickets API (Data Isolation)", () => {
       .set("x-dev-requester-id", userAId);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.pagination.totalCount).toBeGreaterThanOrEqual(1);
 
-    const ticketIds = res.body.map((t: any) => t.id);
+    const ticketIds = res.body.data.map((t: any) => t.id);
     expect(ticketIds).toContain(ticketAId);
     expect(ticketIds).not.toContain(ticketBId);
   });
@@ -81,9 +85,9 @@ describe("My Tickets API (Data Isolation)", () => {
       .set("x-dev-requester-id", userBId);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
 
-    const ticketIds = res.body.map((t: any) => t.id);
+    const ticketIds = res.body.data.map((t: any) => t.id);
     expect(ticketIds).toContain(ticketBId);
     expect(ticketIds).not.toContain(ticketAId);
   });

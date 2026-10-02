@@ -51,8 +51,7 @@ app.get("/api/dev-requesters", async (_req: Request, res: Response) => {
   }
 });
 
-// ---------------------------------------------------------------------------
-// Issue 4 — Category list
+// ---------------------------------------------------------------------------    // Issue 4 — Category list
 // GET /api/categories
 //   -> read categories from PostgreSQL via getPrisma().category.findMany(...)
 //   -> return each { id, name } in a predictable (id) order
@@ -62,6 +61,7 @@ app.get("/api/categories", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const categories = await prisma.category.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
@@ -83,9 +83,11 @@ app.get("/api/related-systems", async (_req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
     const systems = await prisma.relatedSystem.findMany({
+      where: { isActive: true },
       select: {
         id: true,
         name: true,
+        code: true,
         description: true,
       },
       orderBy: { name: "asc" },
@@ -138,17 +140,16 @@ app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response)
       return res.status(400).json({ error: "Bad Request: categoryId is required" });
     }
     const category = await prisma.category.findUnique({ where: { id: categoryId } });
-    if (!category) {
-      return res.status(400).json({ error: "Bad Request: Category does not exist" });
+    if (!category || !category.isActive) {
+      return res.status(400).json({ error: "Bad Request: Category does not exist or is inactive" });
     }
 
-    let systemIdToUse: string | null = null;
-    if (relatedSystemId && typeof relatedSystemId === "string" && relatedSystemId.trim() !== "") {
-      const system = await prisma.relatedSystem.findUnique({ where: { id: relatedSystemId } });
-      if (!system) {
-        return res.status(400).json({ error: "Bad Request: Related System does not exist" });
-      }
-      systemIdToUse = relatedSystemId;
+    if (!relatedSystemId || typeof relatedSystemId !== "string" || relatedSystemId.trim() === "") {
+      return res.status(400).json({ error: "Bad Request: relatedSystemId is required" });
+    }
+    const relatedSystem = await prisma.relatedSystem.findUnique({ where: { id: relatedSystemId } });
+    if (!relatedSystem || !relatedSystem.isActive) {
+      return res.status(400).json({ error: "Bad Request: Related System does not exist or is inactive" });
     }
 
     const validPriorities = ["LOW", "MEDIUM", "HIGH", "URGENT"];
@@ -177,7 +178,7 @@ app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response)
         ticketNumber,
         requesterId,
         categoryId,
-        relatedSystemId: systemIdToUse,
+        relatedSystemId,
         requestedPriority: requestedPriority as any,
         itPriority: requestedPriority as any,
         currentStatus: "NEW",
@@ -185,9 +186,10 @@ app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response)
         description: trimmedDescription,
         attachments: {
           create: files.map((f) => ({
-            fileName: f.originalname,
+            fileName: f.filename,
+            originalName: f.originalname,
             filePath: f.path,
-            fileSize: f.size,
+            sizeBytes: f.size,
             mimeType: f.mimetype,
             isRemoved: false,
           })),
@@ -232,20 +234,81 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
       return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
     }
 
-    const tickets = await prisma.ticket.findMany({
-      where: { requesterId },
-      include: {
-        category: { select: { id: true, name: true } },
-        relatedSystem: { select: { id: true, name: true } },
-        attachments: {
-          where: { isRemoved: false },
-          select: { id: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // --- Query parameters: server-side search / filter / sort / pagination ---
+    const parseEnum = <T extends string>(value: unknown, allowed: readonly T[]): T | undefined =>
+      typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : undefined;
 
-    return res.status(200).json(tickets);
+    const page = Math.max(1, Number.parseInt(String(req.query.page ?? ""), 10) || 1);
+    const rawPageSize = Number.parseInt(String(req.query.pageSize ?? ""), 10) || 10;
+    const pageSize = Math.min(50, Math.max(1, rawPageSize));
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    const categoryId =
+      typeof req.query.categoryId === "string" && req.query.categoryId.trim() !== ""
+        ? req.query.categoryId
+        : undefined;
+    const requestedPriority = parseEnum(req.query.requestedPriority, ["LOW", "MEDIUM", "HIGH", "URGENT"] as const);
+    const currentStatus = parseEnum(req.query.currentStatus, [
+      "NEW",
+      "OPEN",
+      "IN_PROGRESS",
+      "PENDING",
+      "RESOLVED",
+      "CLOSED",
+    ] as const);
+    const sortBy = parseEnum(req.query.sortBy, [
+      "createdAt",
+      "updatedAt",
+      "ticketNumber",
+      "requestedPriority",
+    ] as const) ?? "createdAt";
+    const sortOrder = req.query.sortOrder === "asc" ? "asc" : "desc";
+
+    const where: any = { requesterId };
+    if (categoryId) where.categoryId = categoryId;
+    if (requestedPriority) where.requestedPriority = requestedPriority;
+    if (currentStatus) where.currentStatus = currentStatus;
+    if (search) {
+      where.OR = [
+        { ticketNumber: { contains: search, mode: "insensitive" } },
+        { summary: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [totalCount, tickets] = await Promise.all([
+      prisma.ticket.count({ where }),
+      prisma.ticket.findMany({
+        where,
+        include: {
+          requester: { select: { id: true, name: true, email: true, department: true } },
+          category: { select: { id: true, name: true } },
+          relatedSystem: { select: { id: true, name: true } },
+          attachments: {
+            where: { isRemoved: false },
+            select: { id: true },
+          },
+        },
+        orderBy: { [sortBy]: sortOrder } as any,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+    return res.status(200).json({
+      data: tickets.map((t) => ({
+        ...t,
+        activeAttachmentsCount: t.attachments.length,
+      })),
+      pagination: {
+        totalCount,
+        page,
+        pageSize,
+        totalPages,
+        hasNextPage: page < totalPages,
+        hasPreviousPage: page > 1,
+      },
+    });
   } catch (error) {
     console.error("GET /api/tickets error:", error);
     return res.status(500).json({ error: "Failed to fetch tickets" });
@@ -343,9 +406,10 @@ app.post("/api/tickets/:id/attachments", handleTicketUpload, async (req: Request
         prisma.attachment.create({
           data: {
             ticketId: id,
-            fileName: f.originalname,
+            fileName: f.filename,
+            originalName: f.originalname,
             filePath: f.path,
-            fileSize: f.size,
+            sizeBytes: f.size,
             mimeType: f.mimetype,
             isRemoved: false,
           },
@@ -397,7 +461,7 @@ app.get("/api/attachments/:id/download", async (req: Request, res: Response) => 
       return res.status(404).json({ error: "Physical file not found on disk" });
     }
 
-    return res.download(attachment.filePath, attachment.fileName);
+    return res.download(attachment.filePath, attachment.originalName);
   } catch (error) {
     console.error("GET /api/attachments/:id/download error:", error);
     return res.status(500).json({ error: "Failed to download attachment" });

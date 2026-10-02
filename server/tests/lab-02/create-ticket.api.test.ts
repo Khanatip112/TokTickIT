@@ -36,12 +36,14 @@ describe("POST /api/tickets", () => {
     const prisma = getPrisma();
     const activeUser = await prisma.requesterUser.findFirst({ where: { isActive: true } });
     const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
 
     const res = await request(app)
       .post("/api/tickets")
       .set("x-dev-requester-id", activeUser!.id)
       .field("requesterId", activeUser!.id)
       .field("categoryId", category!.id)
+      .field("relatedSystemId", system!.id)
       .field("requestedPriority", "MEDIUM")
       .field("summary", "Bad")
       .field("description", "Description long enough for test validation.");
@@ -69,7 +71,7 @@ describe("POST /api/tickets", () => {
     expect(res.status).toBe(403);
   });
 
-  it("accepts valid PDF file attachment", async () => {
+  it("returns 400 Bad Request when relatedSystemId is missing", async () => {
     const prisma = getPrisma();
     const activeUser = await prisma.requesterUser.findFirst({ where: { isActive: true } });
     const category = await prisma.category.findFirst();
@@ -80,13 +82,34 @@ describe("POST /api/tickets", () => {
       .field("requesterId", activeUser!.id)
       .field("categoryId", category!.id)
       .field("requestedPriority", "LOW")
+      .field("summary", "Ticket missing a related system")
+      .field("description", "This request omits the required relatedSystemId field.");
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/relatedSystemId/i);
+  });
+
+  it("accepts valid PDF file attachment", async () => {
+    const prisma = getPrisma();
+    const activeUser = await prisma.requesterUser.findFirst({ where: { isActive: true } });
+    const category = await prisma.category.findFirst();
+    const system = await prisma.relatedSystem.findFirst();
+
+    const res = await request(app)
+      .post("/api/tickets")
+      .set("x-dev-requester-id", activeUser!.id)
+      .field("requesterId", activeUser!.id)
+      .field("categoryId", category!.id)
+      .field("relatedSystemId", system!.id)
+      .field("requestedPriority", "LOW")
       .field("summary", "Testing attachment upload functionality")
       .field("description", "Detailed problem description with attached test file.")
       .attach("attachments", Buffer.from("%PDF-1.4 test pdf content"), "test_log.pdf");
 
     expect(res.status).toBe(201);
     expect(res.body.attachments.length).toBe(1);
-    expect(res.body.attachments[0].fileName).toBe("test_log.pdf");
+    expect(res.body.attachments[0].originalName).toBe("test_log.pdf");
+    expect(res.body.attachments[0].sizeBytes).toBeGreaterThan(0);
     expect(res.body.attachments[0].isRemoved).toBe(false);
   });
 });

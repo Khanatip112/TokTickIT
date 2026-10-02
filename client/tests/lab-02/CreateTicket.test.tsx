@@ -10,7 +10,7 @@ const mockCategories: api.Category[] = [
 ];
 
 const mockSystems: api.RelatedSystem[] = [
-  { id: "1", name: "Corporate Laptop", description: "Laptop device" },
+  { id: 1, name: "Corporate Laptop", description: "Laptop device" },
 ];
 
 const mockRequester: api.DevRequester = {
@@ -18,6 +18,7 @@ const mockRequester: api.DevRequester = {
   name: "Jennifer Anderson",
   email: "jennifer.anderson@kmutt.ac.th",
   department: "Computer Engineering",
+
 };
 
 describe("CreateTicketForm Component", () => {

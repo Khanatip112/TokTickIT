@@ -50,6 +50,7 @@ model Category {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
@@ -59,7 +60,9 @@ model Category {
 model RelatedSystem {
   id          String   @id @default(cuid())
   name        String   @unique
+  code        String   @unique
   description String?
+  isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @default(now()) @updatedAt
 
@@ -71,32 +74,34 @@ model Ticket {
   ticketNumber      String       @unique
   requesterId       String
   categoryId        String
-  relatedSystemId   String?
+  relatedSystemId   String
   requestedPriority Priority
-  itPriority        Priority?
+  itPriority        Priority     @default(MEDIUM)
   currentStatus     TicketStatus @default(NEW)
   summary           String
   description       String
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @default(now()) @updatedAt
 
-  requester     RequesterUser  @relation(fields: [requesterId], references: [id])
-  category      Category       @relation(fields: [categoryId], references: [id])
-  relatedSystem RelatedSystem? @relation(fields: [relatedSystemId], references: [id])
+  requester     RequesterUser @relation(fields: [requesterId], references: [id])
+  category      Category      @relation(fields: [categoryId], references: [id])
+  relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id])
   attachments   Attachment[]
 
   @@index([requesterId])
   @@index([categoryId])
   @@index([currentStatus])
   @@index([ticketNumber])
+  @@index([requestedPriority])
 }
 
 model Attachment {
   id            String    @id @default(cuid())
   ticketId      String
   fileName      String
+  originalName  String
   filePath      String
-  fileSize      Int
+  sizeBytes     Int
   mimeType      String
   isRemoved     Boolean   @default(false)
   removedAt     DateTime?
