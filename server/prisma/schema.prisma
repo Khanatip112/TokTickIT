@@ -14,6 +14,12 @@ datasource db {
 // Enums
 // ---------------------------------------------------------------------------
 
+enum Role {
+  REQUESTER
+  IT_STAFF
+  ADMINISTRATOR
+}
+
 enum Priority {
   LOW
   MEDIUM
@@ -26,14 +32,41 @@ enum TicketStatus {
   OPEN
   IN_PROGRESS
   PENDING
+  WAITING_FOR_REQUESTER
   RESOLVED
   CLOSED
+  REOPENED
+  CANCELLED
 }
 
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
 
+model User {
+  id                 String   @id @default(cuid())
+  email              String   @unique
+  passwordHash       String
+  fullName           String
+  name               String?  // Backward-compatibility mirror of fullName
+  role               Role     @default(REQUESTER)
+  department         String?
+  isActive           Boolean  @default(true)
+  mustChangePassword Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @default(now()) @updatedAt
+
+  requestedTickets Ticket[]       @relation("RequesterTickets")
+  assignedTickets  Ticket[]       @relation("AssignedTickets")
+  comments         Comment[]
+  internalNotes    InternalNote[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+// Retained for Lab 2 backwards-compatibility
 model RequesterUser {
   id         String   @id @default(cuid())
   email      String   @unique
@@ -42,8 +75,6 @@ model RequesterUser {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @default(now()) @updatedAt
-
-  tickets Ticket[]
 }
 
 model Category {
@@ -73,6 +104,7 @@ model Ticket {
   id                String       @id @default(cuid())
   ticketNumber      String       @unique
   requesterId       String
+  assignedToId      String?
   categoryId        String
   relatedSystemId   String
   requestedPriority Priority
@@ -80,19 +112,57 @@ model Ticket {
   currentStatus     TicketStatus @default(NEW)
   summary           String
   description       String
+  resolutionSummary String?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @default(now()) @updatedAt
 
-  requester     RequesterUser @relation(fields: [requesterId], references: [id])
+  requester     User          @relation("RequesterTickets", fields: [requesterId], references: [id])
+  assignedTo    User?         @relation("AssignedTickets", fields: [assignedToId], references: [id])
   category      Category      @relation(fields: [categoryId], references: [id])
   relatedSystem RelatedSystem @relation(fields: [relatedSystemId], references: [id])
   attachments   Attachment[]
+  comments      Comment[]
+  internalNotes InternalNote[]
 
   @@index([requesterId])
+  @@index([assignedToId])
   @@index([categoryId])
+  @@index([relatedSystemId])
   @@index([currentStatus])
   @@index([ticketNumber])
   @@index([requestedPriority])
+  @@index([itPriority])
+  @@index([createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([authorId])
+}
+
+model InternalNote {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+  @@index([authorId])
 }
 
 model Attachment {
