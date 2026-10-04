@@ -42,7 +42,17 @@ export interface Ticket {
   relatedSystemId: string;
   requestedPriority: "LOW" | "MEDIUM" | "HIGH" | "URGENT";
   itPriority?: "LOW" | "MEDIUM" | "HIGH" | "URGENT" | null;
-  currentStatus: "NEW" | "OPEN" | "IN_PROGRESS" | "PENDING" | "RESOLVED" | "CLOSED";
+  currentStatus:
+    | "NEW"
+    | "OPEN"
+    | "IN_PROGRESS"
+    | "PENDING"
+    | "WAITING_FOR_REQUESTER"
+    | "RESOLVED"
+    | "CLOSED"
+    | "REOPENED"
+    | "CANCELLED";
+  resolutionSummary?: string | null;
   summary: string;
   description: string;
   createdAt: string;
@@ -575,6 +585,123 @@ export async function getStaffUsers(): Promise<StaffUser[]> {
   const res = await fetch(`${API_URL}/api/staff/users`, { credentials: "include" });
   if (!res.ok) {
     const { message, code } = await readError(res, "Failed to load staff members.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 — IT Staff Ticket Detail Operations (Issue 7)
+// ---------------------------------------------------------------------------
+
+/** Full operational detail for one ticket (api-spec §3.2.2). */
+export interface StaffTicketDetail extends StaffTicket {
+  /** Convenience mirror of `owner.id` (`null` when unassigned). */
+  ownerId: string | null;
+  resolutionSummary: string | null;
+  requester: { id: string; name: string; email: string; department?: string | null };
+  attachments: Attachment[];
+  /**
+   * Target statuses allowed for the current status + role, computed from the
+   * server-side BR-15 transition matrix (admins additionally see the
+   * CLOSED → REOPENED transition).
+   */
+  permittedTransitions: StaffTicketStatus[];
+}
+
+/** Response envelope shared by the claim/assign/priority/status operations. */
+export interface StaffTicketOperationResult {
+  id: string;
+  ownerId?: string | null;
+  assignedToId?: string | null;
+  owner?: { id: string; name: string; email: string } | null;
+  currentStatus?: StaffTicketStatus;
+  requestedPriority?: TicketPriority;
+  itPriority?: TicketPriority;
+  resolutionSummary?: string | null;
+  updatedAt: string;
+}
+
+/** Response of the Requester "Problem Appears Resolved" action. */
+export interface ResolveIndicationResult {
+  message: string;
+  ticketId: string;
+}
+
+/** Shared PATCH helper: JSON body, session cookie, ApiError on failure. */
+async function patchJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "The request could not be completed.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** GET /api/staff/tickets/:id — operational detail with permitted transitions. */
+export async function getStaffTicket(ticketId: string): Promise<StaffTicketDetail> {
+  const res = await fetch(`${API_URL}/api/staff/tickets/${ticketId}`, { credentials: "include" });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to load the ticket.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** PATCH /api/staff/tickets/:id/claim — "Assign to Me" (auto-opens NEW). */
+export async function claimStaffTicket(ticketId: string): Promise<StaffTicketOperationResult> {
+  return patchJson(`/api/staff/tickets/${ticketId}/claim`, {});
+}
+
+/** PATCH /api/staff/tickets/:id/assign — reassign owner (null unassigns). */
+export async function assignStaffTicket(
+  ticketId: string,
+  ownerId: string | null
+): Promise<StaffTicketOperationResult> {
+  return patchJson(`/api/staff/tickets/${ticketId}/assign`, { ownerId });
+}
+
+/** PATCH /api/staff/tickets/:id/priority — updates `itPriority` only (BR-12). */
+export async function updateStaffTicketPriority(
+  ticketId: string,
+  itPriority: TicketPriority
+): Promise<StaffTicketOperationResult> {
+  return patchJson(`/api/staff/tickets/${ticketId}/priority`, { itPriority });
+}
+
+/** PATCH /api/staff/tickets/:id/status — BR-15 transition + BR-17 summary. */
+export async function updateStaffTicketStatus(
+  ticketId: string,
+  currentStatus: StaffTicketStatus,
+  resolutionSummary?: string
+): Promise<StaffTicketOperationResult> {
+  return patchJson(`/api/staff/tickets/${ticketId}/status`, {
+    currentStatus,
+    ...(resolutionSummary !== undefined ? { resolutionSummary } : {}),
+  });
+}
+
+/** POST /api/tickets/:id/resolve-indication — Requester "Problem Appears Resolved". */
+export async function indicateProblemResolved(
+  ticketId: string,
+  note?: string
+): Promise<ResolveIndicationResult> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/resolve-indication`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(note ? { note } : {}),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(
+      res,
+      "The resolution indication could not be recorded."
+    );
     throw new ApiError(message, res.status, code);
   }
   return res.json();
