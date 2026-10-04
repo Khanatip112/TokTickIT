@@ -10,6 +10,7 @@ import { TicketDetailView } from "./components/TicketDetailView.js";
 import { Login } from "./pages/Login.js";
 import { ChangePassword } from "./pages/ChangePassword.js";
 import { UserManagement } from "./pages/UserManagement.js";
+import { StaffTicketQueue } from "./pages/StaffTicketQueue.js";
 
 function LoadingScreen() {
   return (
@@ -27,8 +28,14 @@ function LoadingScreen() {
 /** Maps a header navigation tab to its route. */
 function pathForTab(tab: HeaderTab): string {
   if (tab === "admin") return "/admin/users";
+  if (tab === "staff-queue") return "/staff/queue";
   if (tab === "create-ticket") return "/create-ticket";
   return "/my-tickets";
+}
+
+/** `true` when a role may access the IT Staff queue. */
+function canAccessStaffQueue(role: string): boolean {
+  return role === "IT_STAFF" || role === "ADMINISTRATOR";
 }
 
 /** 403 state shown when a non-Administrator opens the admin console (AC-21). */
@@ -56,6 +63,44 @@ function AdminShell() {
       <Header activeTab="admin" setActiveTab={(tab) => navigate(pathForTab(tab))} />
       <main className="container-fluid px-4 py-4 flex-grow-1">
         <UserManagement />
+      </main>
+    </div>
+  );
+}
+
+/** IT Staff ticket queue shell (`/staff/queue`). */
+function StaffShell() {
+  const { navigate } = useRouter();
+  return (
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      <Header activeTab="staff-queue" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <main className="container-fluid px-4 py-4 flex-grow-1">
+        <StaffTicketQueue onViewTicket={(ticketId) => navigate(`/staff/tickets/${ticketId}`)} />
+      </main>
+    </div>
+  );
+}
+
+/**
+ * Placeholder for the IT Staff ticket detail route (`/staff/tickets/:id`).
+ * The full IT Staff detail screen is delivered by Issue 7.
+ */
+function StaffTicketDetailPlaceholder({ ticketId }: { ticketId: string }) {
+  const { navigate } = useRouter();
+  return (
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      <Header activeTab="staff-queue" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <main className="container-fluid px-4 py-4 flex-grow-1">
+        <div className="card-zen p-5 text-center shadow-sm">
+          <div className="fs-1 mb-2" aria-hidden="true">🧰</div>
+          <h2 className="h4 fw-bold text-zen-primary mb-2">Ticket Detail</h2>
+          <p className="text-muted mb-4">
+            Ticket <strong>{ticketId}</strong> — the IT Staff detail workspace arrives in Issue 7.
+          </p>
+          <button className="btn btn-zen-primary px-4" onClick={() => navigate("/staff/queue")}>
+            ← Back to My Queue
+          </button>
+        </div>
       </main>
     </div>
   );
@@ -145,6 +190,40 @@ function AppRoutes() {
     return (
       <ProtectedRoute>
         <AdminShell />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/staff/queue") {
+    // Issue 6: restricted to IT Staff and Administrators (Requesters get 403).
+    if (!canAccessStaffQueue(user.role)) {
+      return (
+        <div className="min-vh-100 d-flex flex-column bg-light">
+          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+          <AccessDenied />
+        </div>
+      );
+    }
+    return (
+      <ProtectedRoute>
+        <StaffShell />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path.startsWith("/staff/tickets/")) {
+    if (!canAccessStaffQueue(user.role)) {
+      return (
+        <div className="min-vh-100 d-flex flex-column bg-light">
+          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+          <AccessDenied />
+        </div>
+      );
+    }
+    const ticketId = path.slice("/staff/tickets/".length);
+    return (
+      <ProtectedRoute>
+        <StaffTicketDetailPlaceholder ticketId={ticketId} />
       </ProtectedRoute>
     );
   }

@@ -6,6 +6,7 @@ import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadMiddleware } from "./utils/upload.js";
 import { authRouter } from "./routes/auth.js";
 import { adminRouter } from "./routes/admin.routes.js";
+import { staffRouter } from "./routes/staff.routes.js";
 import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
 import multer from "multer";
 
@@ -40,6 +41,12 @@ app.use("/api/auth", authRouter);
 // RBAC-guarded under /api/admin (ADMINISTRATOR only).
 // ---------------------------------------------------------------------------
 app.use("/api/admin", adminRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — IT Staff Ticket Queue (Issue 6)
+// RBAC-guarded under /api/staff (IT_STAFF + ADMINISTRATOR only).
+// ---------------------------------------------------------------------------
+app.use("/api/staff", staffRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 — Requester identity bridge (Issue 3)
