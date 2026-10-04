@@ -3,17 +3,23 @@ import {
   StaffTicketDetail as StaffTicketDetailModel,
   StaffTicketStatus,
   StaffUser,
+  TicketComment,
   TicketPriority,
   assignStaffTicket,
   claimStaffTicket,
   getStaffTicket,
   getStaffUsers,
+  getTicketComments,
+  getTicketInternalNotes,
+  postTicketComment,
+  postTicketInternalNote,
   updateStaffTicketPriority,
   updateStaffTicketStatus,
 } from "../api.js";
 import { useAuth } from "../context/AuthContext.js";
 import { PriorityBadge, PRIORITY_OPTIONS } from "../components/PriorityBadge.js";
 import { TicketStatusBadge, TICKET_STATUS_OPTIONS } from "../components/TicketStatusBadge.js";
+import { TicketCommentItem } from "../components/TicketCommentItem.js";
 
 interface StaffTicketDetailProps {
   ticketId: string;
@@ -23,7 +29,11 @@ interface StaffTicketDetailProps {
 
 const MIN_RESOLUTION_LENGTH = 5;
 const MAX_RESOLUTION_LENGTH = 1000;
+const MAX_COMMENT_LENGTH = 2000;
 const RESOLUTION_TARGETS: StaffTicketStatus[] = ["RESOLVED", "CLOSED"];
+
+/** Activity tabs (ui-spec §4.5). Service Actions is a Lab 4 placeholder. */
+type ActivityTab = "comments" | "notes" | "attachments";
 
 const statusLabel = (value: StaffTicketStatus): string =>
   TICKET_STATUS_OPTIONS.find((option) => option.value === value)?.label ?? value;
@@ -42,6 +52,9 @@ function errorMessage(err: unknown, fallback: string): string {
  * facts alongside the interactive claim/reassign owner select, independent
  * IT Priority select, and a status select constrained to the server-side BR-15
  * transition matrix. Resolving/closing requires a resolution summary (BR-17).
+ *
+ * Issue 8 adds the Tabbed Activity Section: Public Comments (all roles) and
+ * Internal Notes (staff only — lock icon + amber warning per the ui-spec).
  */
 export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
   ticketId,
@@ -61,6 +74,81 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
   // Pending status target (applied via "Apply Status Change").
   const [pendingStatus, setPendingStatus] = useState<StaffTicketStatus | "">("");
   const [resolutionSummary, setResolutionSummary] = useState("");
+
+  // Public Comments & Internal Notes streams (Issue 8 / ui-spec §4.5).
+  const [activityTab, setActivityTab] = useState<ActivityTab>("comments");
+  const [comments, setComments] = useState<TicketComment[]>([]);
+  const [notes, setNotes] = useState<TicketComment[]>([]);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [notesError, setNotesError] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [noteDraft, setNoteDraft] = useState("");
+  const [isPostingComment, setIsPostingComment] = useState(false);
+  const [isPostingNote, setIsPostingNote] = useState(false);
+
+  // Defense-in-depth: Internal Notes are only ever loaded for staff roles,
+  // even though `/staff/tickets/:id` is already route-guarded in App.tsx.
+  const canViewNotes = user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR";
+
+  /** Loads both activity streams (notes skipped for non-staff roles). */
+  const loadActivities = useCallback(async () => {
+    try {
+      const list = await getTicketComments(ticketId);
+      setComments(list);
+      setCommentsError(null);
+    } catch (err) {
+      setCommentsError(errorMessage(err, "Failed to load public comments."));
+    }
+    if (canViewNotes) {
+      try {
+        const list = await getTicketInternalNotes(ticketId);
+        setNotes(list);
+        setNotesError(null);
+      } catch (err) {
+        setNotesError(errorMessage(err, "Failed to load internal notes."));
+      }
+    } else {
+      setNotes([]);
+    }
+  }, [ticketId, canViewNotes]);
+
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
+
+  /** Appends a new public comment (BR-18 append-only — no edits afterwards). */
+  const handlePostComment = async () => {
+    const content = commentDraft.trim();
+    if (!content || isPostingComment) return;
+    setIsPostingComment(true);
+    setCommentsError(null);
+    try {
+      const created = await postTicketComment(ticketId, content);
+      setComments((prev) => [...prev, created]);
+      setCommentDraft("");
+    } catch (err) {
+      setCommentsError(errorMessage(err, "Failed to post the comment."));
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
+
+  /** Appends a new confidential internal note (staff only, BR-18 append-only). */
+  const handlePostNote = async () => {
+    const content = noteDraft.trim();
+    if (!content || isPostingNote) return;
+    setIsPostingNote(true);
+    setNotesError(null);
+    try {
+      const created = await postTicketInternalNote(ticketId, content);
+      setNotes((prev) => [...prev, created]);
+      setNoteDraft("");
+    } catch (err) {
+      setNotesError(errorMessage(err, "Failed to post the internal note."));
+    } finally {
+      setIsPostingNote(false);
+    }
+  };
 
   const loadTicket = useCallback(async () => {
     setIsLoading(true);
@@ -504,13 +592,226 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
             </small>
           )}
       </div>
+
+      {/* Tabbed Activity Section (ui-spec §4.5) */}
+      <div className="card-zen shadow-sm mt-3" data-testid="activity-section">
+        <div className="px-4 pt-4">
+          <ul
+            className="nav nav-tabs"
+            role="tablist"
+            aria-label="Ticket activity"
+            style={{ overflowX: "auto" }}
+          >
+            <li className="nav-item" role="presentation">
+              <button
+                type="button"
+                role="tab"
+                id="tab-public-comments"
+                aria-controls="panel-public-comments"
+                aria-selected={activityTab === "comments"}
+                data-testid="public-comments-tab"
+                className={`nav-link ${activityTab === "comments" ? "active" : ""}`}
+                style={
+                  activityTab === "comments"
+                    ? { color: "#006B3C", fontWeight: 600, borderBottom: "3px solid #006B3C" }
+                    : undefined
+                }
+                onClick={() => setActivityTab("comments")}
+              >
+                <span aria-hidden="true" style={{ color: "#006B3C" }}>
+                  ●
+                </span>{" "}
+                Public Comments ({comments.length})
+              </button>
+            </li>
+            {canViewNotes && (
+              <li className="nav-item" role="presentation">
+                <button
+                  type="button"
+                  role="tab"
+                  id="tab-internal-notes"
+                  aria-controls="panel-internal-notes"
+                  aria-selected={activityTab === "notes"}
+                  data-testid="internal-notes-tab"
+                  className={`nav-link ${activityTab === "notes" ? "active" : ""}`}
+                  style={
+                    activityTab === "notes"
+                      ? { color: "#92400E", fontWeight: 600, borderBottom: "3px solid #F59E0B" }
+                      : { color: "#92400E" }
+                  }
+                  onClick={() => setActivityTab("notes")}
+                >
+                  🔒 Internal Notes ({notes.length})
+                </button>
+              </li>
+            )}
+            <li className="nav-item" role="presentation">
+              <button
+                type="button"
+                role="tab"
+                id="tab-attachments"
+                aria-controls="panel-attachments"
+                aria-selected={activityTab === "attachments"}
+                data-testid="attachments-tab"
+                className={`nav-link ${activityTab === "attachments" ? "active" : ""}`}
+                style={
+                  activityTab === "attachments"
+                    ? { fontWeight: 600, borderBottom: "3px solid #006B3C" }
+                    : undefined
+                }
+                onClick={() => setActivityTab("attachments")}
+              >
+                Attachments ({ticket.attachments.length})
+              </button>
+            </li>
+            <li className="nav-item" role="presentation">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={false}
+                data-testid="service-actions-tab"
+                className="nav-link"
+                disabled
+                title="Service Actions will be available in Lab 4."
+              >
+                Service Actions (0)
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div className="p-4 pt-3">
+          {activityTab === "comments" && (
+            <div
+              id="panel-public-comments"
+              role="tabpanel"
+              aria-labelledby="tab-public-comments"
+              data-testid="public-comments-panel"
+            >
+              <label htmlFor="staff-comment-input" className="form-label small text-muted mb-1">
+                Add Public Comment
+              </label>
+              <textarea
+                id="staff-comment-input"
+                data-testid="staff-comment-input"
+                className="form-control mb-2"
+                rows={3}
+                placeholder="Type your comment here..."
+                maxLength={MAX_COMMENT_LENGTH}
+                value={commentDraft}
+                onChange={(e) => setCommentDraft(e.target.value)}
+                disabled={isPostingComment}
+              />
+              <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <small className="text-muted">
+                  Append-only — comments cannot be edited or deleted once posted. (
+                  {commentDraft.trim().length}/2,000)
+                </small>
+                <button
+                  type="button"
+                  data-testid="post-comment"
+                  className="btn btn-zen-primary btn-sm"
+                  onClick={handlePostComment}
+                  disabled={isPostingComment || commentDraft.trim().length === 0}
+                >
+                  {isPostingComment ? "Posting…" : "Post Comment"}
+                </button>
+              </div>
+              {commentsError && (
+                <div className="alert alert-danger py-2 small" role="alert">
+                  {commentsError}
+                </div>
+              )}
+              {comments.length === 0 ? (
+                <p className="text-muted small mb-0" data-testid="public-comments-empty">
+                  No public comments yet.
+                </p>
+              ) : (
+                <div className="d-flex flex-column gap-2" data-testid="public-comments-list">
+                  {[...comments]
+                    .reverse()
+                    .map((comment) => (
+                      <TicketCommentItem key={comment.id} comment={comment} />
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Internal Notes panel — staff only (FR-21). Amber confidential styling
+              per ui-spec §4.5 so notes can never be confused with public messages. */}
+          {activityTab === "notes" && canViewNotes && (
+            <div
+              id="panel-internal-notes"
+              role="tabpanel"
+              aria-labelledby="tab-internal-notes"
+              data-testid="internal-notes-panel"
+            >
+              <div
+                className="rounded border p-2 px-3 mb-3 d-flex align-items-center gap-2"
+                style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B" }}
+                data-testid="internal-notes-warning"
+              >
+                <span className="fs-5" aria-hidden="true">
+                  🔒
+                </span>
+                <strong className="small" style={{ color: "#92400E" }}>
+                  Internal Note — Visible strictly to IT Staff and Administrators
+                </strong>
+              </div>
+              <label htmlFor="staff-note-input" className="form-label small text-muted mb-1">
+                Add Internal Note
+              </label>
+              <textarea
+                id="staff-note-input"
+                data-testid="staff-note-input"
+                className="form-control mb-2"
+                rows={3}
+                placeholder="Type internal note here..."
+                maxLength={MAX_COMMENT_LENGTH}
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                disabled={isPostingNote}
+              />
+              <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <small className="text-muted">
+                  Append-only — internal notes cannot be edited or deleted once posted. (
+                  {noteDraft.trim().length}/2,000)
+                </small>
+                <button
+                  type="button"
+                  data-testid="post-internal-note"
+                  className="btn btn-zen-primary btn-sm"
+                  onClick={handlePostNote}
+                  disabled={isPostingNote || noteDraft.trim().length === 0}
+                >
+                  {isPostingNote ? "Posting…" : "Post Internal Note"}
+                </button>
+              </div>
+              {notesError && (
+                <div className="alert alert-danger py-2 small" role="alert">
+                  {notesError}
+                </div>
+              )}
+              {notes.length === 0 ? (
+                <p className="text-muted small mb-0" data-testid="internal-notes-empty">
+                  No internal notes yet.
+                </p>
+              ) : (
+                <div className="d-flex flex-column gap-2" data-testid="internal-notes-list">
+                  {[...notes]
+                    .reverse()
+                    .map((note) => (
+                      <TicketCommentItem key={note.id} comment={note} variant="internal" />
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
 
 export default StaffTicketDetail;
-
-
-
-
-

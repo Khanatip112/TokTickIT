@@ -9,6 +9,7 @@ import { adminRouter } from "./routes/admin.routes.js";
 import { staffRouter } from "./routes/staff.routes.js";
 import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
 import { ticketDetailRouter } from "./routes/ticketDetail.routes.js";
+import { commentsRouter } from "./routes/comments.routes.js";
 import multer from "multer";
 
 
@@ -58,6 +59,16 @@ app.use("/api/staff", staffRouter);
 // are untouched.
 // ---------------------------------------------------------------------------
 app.use("/api/tickets", ticketDetailRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Public Comments & Internal Notes (Issue 8)
+// `GET/POST /api/tickets/:id/comments` (owner Requester + IT Staff + Admin)
+// and `GET/POST /api/tickets/:id/notes` (IT Staff + Admin only; alias
+// `/internal-notes`). RBAC guards live inside the router. The sub-router only
+// matches those nested paths, so the legacy Lab 2 routes below
+// (GET/POST /api/tickets, GET /api/tickets/:id) are untouched.
+// ---------------------------------------------------------------------------
+app.use("/api/tickets", commentsRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 — Requester identity bridge (Issue 3)

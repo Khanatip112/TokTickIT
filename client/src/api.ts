@@ -706,3 +706,87 @@ export async function indicateProblemResolved(
   }
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Public Comments & Internal Notes (Issue 8)
+// ---------------------------------------------------------------------------
+
+/** Backend-stamped author of a comment or internal note (api-spec §3.3). */
+export interface TicketCommentAuthor {
+  id: string;
+  name: string;
+  role: UserRole;
+}
+
+/**
+ * One entry in the Public Comments or Internal Notes stream (BR-18 append-only:
+ * there are intentionally no update/delete client helpers).
+ */
+export interface TicketComment {
+  id: string;
+  /** Present on POST responses; GET list responses omit it (api-spec §3.3.1). */
+  ticketId?: string;
+  content: string;
+  createdAt: string;
+  author: TicketCommentAuthor;
+}
+
+/** GET /api/tickets/:id/comments — public comments (owner, IT Staff, Admin). */
+export async function getTicketComments(ticketId: string): Promise<TicketComment[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to load public comments.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** POST /api/tickets/:id/comments — appends a public comment (201 Created). */
+export async function postTicketComment(
+  ticketId: string,
+  content: string
+): Promise<TicketComment> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/comments`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to post the comment.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** GET /api/tickets/:id/notes — internal notes (403 for Requesters). */
+export async function getTicketInternalNotes(ticketId: string): Promise<TicketComment[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/notes`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to load internal notes.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** POST /api/tickets/:id/notes — appends an internal note (403 for Requesters). */
+export async function postTicketInternalNote(
+  ticketId: string,
+  content: string
+): Promise<TicketComment> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/notes`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to post the internal note.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
