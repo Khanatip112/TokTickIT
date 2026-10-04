@@ -112,9 +112,9 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
       });
       setTickets(result.data);
       setPagination(result.pagination);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to load tickets:", err);
-      setError(err.message || "Failed to load tickets. Please try again.");
+      setError(err instanceof Error ? err.message : "Failed to load tickets. Please try again.");
     } finally {
       setIsLoading(false);
     }

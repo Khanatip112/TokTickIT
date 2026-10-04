@@ -1,8 +1,17 @@
 import React, { ChangeEvent, FormEvent, useState } from "react";
+import { ApiError } from "../api.js";
 import { landingPathFor, useAuth } from "../context/AuthContext.js";
 import { useRouter } from "../router.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Uniform credentials banner required by ui-spec.md §4.1 / specification.md
+ * (AC-03, BR-01). The API intentionally returns the terser
+ * "Invalid email or password." (no enumeration), so the UI normalises every
+ * 401 to the friendlier, spec-mandated wording.
+ */
+const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password. Please try again.";
 
 /**
  * Screen 1 — Login (`/login`) per ui-spec.md §4.1.
@@ -43,9 +52,11 @@ export const Login: React.FC = () => {
       navigate(landingPathFor(loggedIn));
     } catch (err) {
       const message =
-        err instanceof Error && err.message
-          ? err.message
-          : "Invalid email or password. Please try again.";
+        err instanceof ApiError && err.status === 401
+          ? INVALID_CREDENTIALS_MESSAGE
+          : err instanceof Error && err.message
+            ? err.message
+            : INVALID_CREDENTIALS_MESSAGE;
       setFormError(message);
       setPassword("");
     } finally {

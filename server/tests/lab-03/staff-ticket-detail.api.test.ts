@@ -20,7 +20,6 @@ const EMAIL = {
 const createdUserIds: string[] = [];
 let staffId = "";
 let staff2Id = "";
-let adminId = "";
 let requesterId = "";
 let otherRequesterUserId = "";
 let inactiveStaffId = "";
@@ -97,7 +96,7 @@ async function login(email: string) {
 beforeAll(async () => {
   staffId = await createTestUser(EMAIL.staff, `Detail Staff ${STAMP}`, "IT_STAFF");
   staff2Id = await createTestUser(EMAIL.staff2, `Detail Staff Two ${STAMP}`, "IT_STAFF");
-  adminId = await createTestUser(EMAIL.admin, `Detail Admin ${STAMP}`, "ADMINISTRATOR");
+  await createTestUser(EMAIL.admin, `Detail Admin ${STAMP}`, "ADMINISTRATOR");
   requesterId = await createTestUser(EMAIL.requester, `Detail Requester ${STAMP}`, "REQUESTER");
   otherRequesterUserId = await createTestUser(
     EMAIL.otherRequester,

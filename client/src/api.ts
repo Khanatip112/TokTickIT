@@ -234,7 +234,7 @@ export async function checkSystem(): Promise<SystemStatus> {
     await checkHealth();
     const categories = await getCategories();
     return { online: true, categories };
-  } catch (error) {
+  } catch {
     throw new Error("Unable to connect to TokTickIT API");
   }
 }
@@ -246,9 +246,7 @@ export async function getTicketDetail(ticketId: string, requesterId: string): Pr
   });
   const data = await res.json();
   if (!res.ok) {
-    const error: any = new Error(data.error || "Failed to fetch ticket detail");
-    error.status = res.status;
-    throw error;
+    throw new ApiError(data.error || "Failed to fetch ticket detail", res.status);
   }
   return data;
 }
@@ -318,11 +316,7 @@ export async function createTicket(formData: FormData, requesterId: string): Pro
 
   const data = await res.json();
   if (!res.ok) {
-    const errorMsg = data.error || `Ticket creation failed (${res.status})`;
-    const error: any = new Error(errorMsg);
-    error.status = res.status;
-    error.data = data;
-    throw error;
+    throw new ApiError(data.error || `Ticket creation failed (${res.status})`, res.status);
   }
 
   return data;
@@ -352,10 +346,7 @@ export async function getMyTickets(
 
   const data = await res.json();
   if (!res.ok) {
-    const errorMsg = data.error || `Failed to fetch my tickets (${res.status})`;
-    const error: any = new Error(errorMsg);
-    error.status = res.status;
-    throw error;
+    throw new ApiError(data.error || `Failed to fetch my tickets (${res.status})`, res.status);
   }
   return data as PaginatedTickets;
 }

@@ -152,14 +152,18 @@ function AppRoutes() {
   if (isLoading) return <LoadingScreen />;
 
   if (path === "/login") {
-    if (user && needsPasswordChange(user)) return <ChangePassword />;
+    if (user && needsPasswordChange(user)) return <Navigate to="/change-password" replace />;
     if (user) return <Navigate to="/" replace />;
     return <Login />;
   }
 
   if (!user) return <Navigate to="/login" replace />;
 
-  if (needsPasswordChange(user)) return <ChangePassword />;
+  // The mandatory first-login wall redirects to its own route so the URL is
+  // shareable/refresh-safe; the `/change-password` branch below then renders it.
+  if (needsPasswordChange(user) && path !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
+  }
 
   if (path === "/change-password") {
     return (

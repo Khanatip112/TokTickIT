@@ -232,7 +232,7 @@ export async function assignTicket(req: Request, res: Response): Promise<Respons
         .json(errorPayload("BAD_REQUEST", "Bad Request: ownerId is required (use null to unassign)."));
     }
 
-    let ownerId: string | null =
+    const ownerId: string | null =
       body.ownerId === "" || body.ownerId === null ? null : body.ownerId;
 
     if (ownerId !== null) {
