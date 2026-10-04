@@ -349,3 +349,138 @@ export async function getMyTickets(
   }
   return data as PaginatedTickets;
 }
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Administrator User Management (Issue 5)
+// ---------------------------------------------------------------------------
+
+export interface AdminUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  department: string | null;
+  isActive: boolean;
+  requiresPasswordChange: boolean;
+  mustChangePassword: boolean;
+  createdAt: string;
+}
+
+export interface ListUsersParams {
+  search?: string;
+  role?: UserRole | "";
+  isActive?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface CreateUserPayload {
+  name: string;
+  email: string;
+  role: UserRole;
+  department?: string | null;
+  isActive?: boolean;
+  initialPassword?: string;
+}
+
+export interface UpdateUserPayload {
+  name?: string;
+  email?: string;
+  role?: UserRole;
+  department?: string | null;
+  isActive?: boolean;
+}
+
+export interface ResetPasswordResult {
+  message: string;
+  userId: string;
+}
+
+/** GET /api/admin/users — directory listing with search/filter/pagination. */
+export async function listUsers(params: ListUsersParams = {}): Promise<AdminUser[]> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.role) query.set("role", params.role);
+  if (params.isActive !== undefined) query.set("isActive", String(params.isActive));
+  if (params.page) query.set("page", String(params.page));
+  if (params.pageSize) query.set("pageSize", String(params.pageSize));
+
+  const qs = query.toString();
+  const res = await fetch(`${API_URL}/api/admin/users${qs ? `?${qs}` : ""}`, { credentials: "include" });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to load users.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** POST /api/admin/users — creates a user flagged for a first-login password change. */
+export async function createUser(payload: CreateUserPayload): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to create user.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** PATCH /api/admin/users/:id — updates name / email / role / status. */
+export async function updateUser(id: string, payload: UpdateUserPayload): Promise<AdminUser> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to update user.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** POST /api/admin/users/:id/reset-password — issues a new temporary password. */
+export async function resetUserPassword(id: string, initialPassword: string): Promise<ResetPasswordResult> {
+  const res = await fetch(`${API_URL}/api/admin/users/${id}/reset-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ initialPassword }),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to reset password.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** Generates a complexity-compliant temporary password for the create/reset forms. */
+export function generateTempPassword(): string {
+  const lower = "abcdefghijkmnpqrstuvwxyz";
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const special = "!@#$%&*";
+  const pick = (set: string, count: number) =>
+    Array.from({ length: count }, () => set.charAt(Math.floor(Math.random() * set.length))).join("");
+
+  const chars = (
+    pick(upper, 1) +
+    pick(lower, 4) +
+    pick(digits, 2) +
+    pick(special, 1) +
+    pick(lower + upper + digits, 4)
+  ).split("");
+
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const tmp = chars[i];
+    chars[i] = chars[j];
+    chars[j] = tmp;
+  }
+  return chars.join("");
+}

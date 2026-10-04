@@ -1,5 +1,5 @@
 import React, { FormEvent, useState } from "react";
-import { needsPasswordChange, useAuth } from "../context/AuthContext.js";
+import { landingPathFor, needsPasswordChange, useAuth } from "../context/AuthContext.js";
 import { useRouter } from "../router.js";
 import { PasswordChecklist, passwordMeetsPolicy } from "../components/PasswordChecklist.js";
 import { PasswordField } from "../components/PasswordField.js";
@@ -47,12 +47,12 @@ export const ChangePassword: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await changePassword(currentPassword, newPassword, confirmPassword);
+      const updated = await changePassword(currentPassword, newPassword, confirmPassword);
       setSuccess(true);
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      navigate("/");
+      navigate(landingPathFor(updated));
     } catch (err) {
       const message =
         err instanceof Error && err.message ? err.message : "Failed to change password. Please try again.";

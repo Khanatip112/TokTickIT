@@ -5,6 +5,7 @@ import { getPrisma } from "./prisma.js";
 import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadMiddleware } from "./utils/upload.js";
 import { authRouter } from "./routes/auth.js";
+import { adminRouter } from "./routes/admin.routes.js";
 import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
 import multer from "multer";
 
@@ -33,6 +34,12 @@ app.use(loadSession);
 // Lab 3 — Authentication & session management (Issue 3)
 // ---------------------------------------------------------------------------
 app.use("/api/auth", authRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Administrator User Management (Issue 5)
+// RBAC-guarded under /api/admin (ADMINISTRATOR only).
+// ---------------------------------------------------------------------------
+app.use("/api/admin", adminRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 — Requester identity bridge (Issue 3)
