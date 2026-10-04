@@ -3,14 +3,20 @@ import { useAuth } from "../context/AuthContext";
 import {
   Ticket,
   Attachment,
+  TicketComment,
   getTicketDetail,
   uploadAttachmentToTicket,
   softRemoveAttachment,
   getAttachmentDownloadUrl,
   indicateProblemResolved,
+  getTicketComments,
+  postTicketComment,
 } from "../api";
 import { PriorityBadge } from "./PriorityBadge";
 import { TicketStatusBadge } from "./TicketStatusBadge";
+import { TicketCommentItem } from "./TicketCommentItem";
+
+const MAX_COMMENT_LENGTH = 2000;
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -54,6 +60,13 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   const [indicationError, setIndicationError] = useState<string | null>(null);
   const [indicationDone, setIndicationDone] = useState<boolean>(false);
 
+  // Public Comments (Issue 8 / FR-20). Internal Notes are never fetched or
+  // rendered here — the Requester view must not expose the confidential stream.
+  const [comments, setComments] = useState<TicketComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [isPostingComment, setIsPostingComment] = useState(false);
+
   const fetchDetail = async () => {
     if (!user) return;
     setIsLoading(true);
@@ -78,6 +91,39 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   useEffect(() => {
     fetchDetail();
   }, [ticketId, user?.id]);
+
+  /** Loads the Public Comments stream (owner access enforced server-side). */
+  const loadComments = async () => {
+    if (!user) return;
+    try {
+      const list = await getTicketComments(ticketId);
+      setComments(list);
+      setCommentsError(null);
+    } catch (err: any) {
+      setCommentsError(err?.message || "Failed to load public comments.");
+    }
+  };
+
+  useEffect(() => {
+    loadComments();
+  }, [ticketId, user?.id]);
+
+  /** Appends a public comment (BR-18 append-only — no edits afterwards). */
+  const handlePostComment = async () => {
+    const content = commentDraft.trim();
+    if (!content || isPostingComment) return;
+    setIsPostingComment(true);
+    setCommentsError(null);
+    try {
+      const created = await postTicketComment(ticketId, content);
+      setComments((prev) => [...prev, created]);
+      setCommentDraft("");
+    } catch (err: any) {
+      setCommentsError(err.message || "Failed to post the comment.");
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
 
   const handleConfirmRemoval = async () => {
     if (!selectedAttachment || !user) return;
@@ -298,6 +344,63 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
         <div className="p-3 bg-white border rounded text-dark" style={{ whiteSpace: "pre-wrap", minHeight: "100px" }}>
           {ticket.description}
         </div>
+      </div>
+
+      {/* Public Comments (Issue 8 / FR-20) — Requesters read and post public          comments only; the Internal Notes stream is never rendered here. */}
+      <div className="mb-4" data-testid="requester-public-comments">
+        <label className="form-label fw-bold text-dark d-flex align-items-center gap-2">
+          <span>💬 Public Comments</span>
+          <span className="badge bg-secondary fs-6 fw-normal">{comments.length}</span>
+        </label>
+        {commentsError && (
+          <div className="alert alert-danger py-2 small mb-2" role="alert">
+            {commentsError}
+          </div>
+        )}
+        <label htmlFor="requester-comment-input" className="form-label small text-muted mb-1">
+          Add Public Comment
+        </label>
+        <textarea
+          id="requester-comment-input"
+          data-testid="requester-comment-input"
+          className="form-control mb-2"
+          rows={3}
+          placeholder="Type your comment here..."
+          maxLength={MAX_COMMENT_LENGTH}
+          value={commentDraft}
+          onChange={(e) => setCommentDraft(e.target.value)}
+          disabled={isPostingComment}
+        />
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <small className="text-muted">
+            Append-only — comments cannot be edited or deleted once posted.
+          </small>
+          <button
+            type="button"
+            className="btn btn-zen-primary btn-sm"
+            data-testid="post-comment"
+            onClick={handlePostComment}
+            disabled={isPostingComment || commentDraft.trim().length === 0}
+          >
+            {isPostingComment ? "Posting…" : "Post Comment"}
+          </button>
+        </div>
+        {comments.length === 0 ? (
+          <p
+            className="text-muted small mb-0 border p-3 rounded bg-light"
+            data-testid="public-comments-empty"
+          >
+            No public comments yet.
+          </p>
+        ) : (
+          <div className="d-flex flex-column gap-2" data-testid="public-comments-list">
+            {[...comments]
+              .reverse()
+              .map((comment) => (
+                <TicketCommentItem key={comment.id} comment={comment} />
+              ))}
+          </div>
+        )}
       </div>
 
       {/* BR-16 / FR-12 — "Problem Appears Resolved" indication (status is NOT changed) */}

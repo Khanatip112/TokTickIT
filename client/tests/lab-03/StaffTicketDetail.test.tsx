@@ -294,6 +294,7 @@ describe("TicketDetailView — Requester view (read-only badges + Problem Appear
     vi.restoreAllMocks();
     vi.spyOn(api, "getCurrentUser").mockResolvedValue(requesterUser);
     vi.spyOn(api, "getTicketDetail").mockResolvedValue(makeRequesterTicket());
+    vi.spyOn(api, "getTicketComments").mockResolvedValue([]);
     vi.spyOn(api, "indicateProblemResolved").mockResolvedValue({
       message: "Resolution indication recorded successfully",
       ticketId: "tkt-r",
@@ -367,6 +368,181 @@ describe("TicketDetailView — Requester view (read-only badges + Problem Appear
     await screen.findByText("TKT-2026-000456");
     expect(screen.queryByTestId("resolve-indication-card")).toBeNull();
     expect(screen.queryByRole("button", { name: "Problem Appears Resolved" })).toBeNull();
+  });
+
+  it("shows Public Comments for the Requester — and never any internal notes (Issue 8)", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "getTicketComments").mockResolvedValue([
+      {
+        id: "c-1",
+        content: "We are investigating the issue on your device.",
+        createdAt: "2026-05-13T10:30:00.000Z",
+        author: { id: "s-1", name: "Michael Brown", role: "IT_STAFF" },
+      },
+    ]);
+    vi.spyOn(api, "postTicketComment").mockResolvedValue({
+      id: "c-2",
+      ticketId: "tkt-r",
+      content: "Thank you for the update!",
+      createdAt: "2026-05-14T09:00:00.000Z",
+      author: { id: "req-1", name: "Jennifer Anderson", role: "REQUESTER" },
+    });
+
+    renderRequesterDetail();
+    const list = await screen.findByTestId("public-comments-list");
+    const item = within(list).getByTestId("public-comment-item");
+    expect(item).toHaveTextContent("We are investigating the issue on your device.");
+    expect(within(item).getByTestId("role-badge")).toHaveTextContent("IT Staff");
+
+    // The confidential stream must not exist anywhere in the Requester view.
+    expect(screen.queryByTestId("internal-notes-tab")).toBeNull();
+    expect(screen.queryByTestId("internal-notes-panel")).toBeNull();
+    expect(screen.queryByTestId("internal-note-item")).toBeNull();
+
+    await user.type(screen.getByTestId("requester-comment-input"), "Thank you for the update!");
+    await user.click(screen.getByTestId("post-comment"));
+
+    await waitFor(() =>
+      expect(api.postTicketComment).toHaveBeenCalledWith("tkt-r", "Thank you for the update!")
+    );
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("public-comments-list")).getAllByTestId("public-comment-item")
+      ).toHaveLength(2)
+    );
+  });
+});
+
+describe("StaffTicketDetail — Issue 8: Public Comments & Internal Notes tabs", () => {
+  const commentA: api.TicketComment = {
+    id: "c-1",
+    content: "We are investigating the issue on your device.",
+    createdAt: "2026-05-13T10:30:00.000Z",
+    author: { id: "s-1", name: "Michael Brown", role: "IT_STAFF" },
+  };
+  const noteA: api.TicketComment = {
+    id: "n-1",
+    content: "Battery degradation confirmed — replacement ordered.",
+    createdAt: "2026-05-13T10:15:00.000Z",
+    author: { id: "s-1", name: "Michael Brown", role: "IT_STAFF" },
+  };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    window.history.replaceState({}, "", "/staff/tickets/tkt-1");
+    vi.spyOn(api, "getCurrentUser").mockResolvedValue(staffUser);
+    vi.spyOn(api, "getStaffTicket").mockResolvedValue(makeDetail());
+    vi.spyOn(api, "getStaffUsers").mockResolvedValue(staffList);
+    vi.spyOn(api, "getTicketComments").mockResolvedValue([commentA]);
+    vi.spyOn(api, "getTicketInternalNotes").mockResolvedValue([noteA]);
+    vi.spyOn(api, "postTicketComment").mockResolvedValue({
+      id: "c-2",
+      ticketId: "tkt-1",
+      content: "New public reply",
+      createdAt: "2026-05-14T09:00:00.000Z",
+      author: { id: "s-1", name: "Michael Brown", role: "IT_STAFF" },
+    });
+    vi.spyOn(api, "postTicketInternalNote").mockResolvedValue({
+      id: "n-2",
+      ticketId: "tkt-1",
+      content: "Replacement part ordered",
+      createdAt: "2026-05-14T09:05:00.000Z",
+      author: { id: "s-1", name: "Michael Brown", role: "IT_STAFF" },
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("shows both tabs for IT Staff with the lock icon on Internal Notes", async () => {
+    renderStaffDetail();
+    await screen.findByTestId("staff-ticket-detail");
+
+    expect(screen.getByTestId("public-comments-tab")).toHaveTextContent(/Public Comments/);
+    const notesTab = screen.getByTestId("internal-notes-tab");
+    expect(notesTab).toHaveTextContent(/Internal Notes/);
+    expect(notesTab.textContent).toContain("🔒");
+  });
+
+  it("renders the public comment stream with author, role badge, and NO edit/delete controls", async () => {
+    renderStaffDetail();
+
+    const list = await screen.findByTestId("public-comments-list");
+    const item = within(list).getByTestId("public-comment-item");
+    expect(item).toHaveTextContent("We are investigating the issue on your device.");
+    expect(within(item).getByTestId("role-badge")).toHaveTextContent("IT Staff");
+    // BR-18 append-only: no edit/delete affordances are ever rendered.
+    expect(within(item).queryByRole("button")).toBeNull();
+    expect(within(item).queryByText(/edit/i)).toBeNull();
+    expect(within(item).queryByText(/delete/i)).toBeNull();
+  });
+
+  it("posts a public comment through the API and appends it to the stream", async () => {
+    const user = userEvent.setup();
+    renderStaffDetail();
+    await screen.findByTestId("staff-ticket-detail");
+
+    await user.type(screen.getByTestId("staff-comment-input"), "New public reply");
+    await user.click(screen.getByTestId("post-comment"));
+
+    await waitFor(() =>
+      expect(api.postTicketComment).toHaveBeenCalledWith("tkt-1", "New public reply")
+    );
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("public-comments-list")).getAllByTestId("public-comment-item")
+      ).toHaveLength(2)
+    );
+  });
+
+  it("shows the amber confidentiality banner and 🔒 Internal badge on the Internal Notes tab", async () => {
+    const user = userEvent.setup();
+    renderStaffDetail();
+    await screen.findByTestId("staff-ticket-detail");
+
+    await user.click(screen.getByTestId("internal-notes-tab"));
+
+    const panel = screen.getByTestId("internal-notes-panel");
+    const banner = within(panel).getByTestId("internal-notes-warning");
+    expect(banner.textContent).toContain("🔒");
+    expect(banner.textContent).toContain("Visible strictly to IT Staff and Administrators");
+
+    const item = within(panel).getByTestId("internal-note-item");
+    expect(item).toHaveTextContent("Battery degradation confirmed — replacement ordered.");
+    expect(within(item).getByTestId("internal-note-badge")).toHaveTextContent(/Internal/);
+    // Distinct pale-amber note card (ui-spec §4.5) so it can't be mistaken for public.
+    expect(item).toHaveStyle({ backgroundColor: "#FFFBEB" });
+  });
+
+  it("posts an internal note through the staff-only endpoint", async () => {
+    const user = userEvent.setup();
+    renderStaffDetail();
+    await screen.findByTestId("staff-ticket-detail");
+
+    await user.click(screen.getByTestId("internal-notes-tab"));
+    await user.type(screen.getByTestId("staff-note-input"), "Replacement part ordered");
+    await user.click(screen.getByTestId("post-internal-note"));
+
+    await waitFor(() =>
+      expect(api.postTicketInternalNote).toHaveBeenCalledWith("tkt-1", "Replacement part ordered")
+    );
+    await waitFor(() =>
+      expect(
+        within(screen.getByTestId("internal-notes-list")).getAllByTestId("internal-note-item")
+      ).toHaveLength(2)
+    );
+  });
+
+  it("hides the Internal Notes tab for Requesters and never loads notes (defense-in-depth)", async () => {
+    vi.spyOn(api, "getCurrentUser").mockResolvedValue(requesterUser);
+    renderStaffDetail();
+    await screen.findByTestId("staff-ticket-detail");
+
+    expect(screen.queryByTestId("internal-notes-tab")).toBeNull();
+    expect(screen.queryByTestId("internal-notes-panel")).toBeNull();
+    expect(api.getTicketInternalNotes).not.toHaveBeenCalled();
+    expect(screen.getByTestId("public-comments-tab")).toBeInTheDocument();
   });
 });
 
