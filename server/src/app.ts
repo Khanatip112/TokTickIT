@@ -4,6 +4,8 @@ import fs from "fs";
 import { getPrisma } from "./prisma.js";
 import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadMiddleware } from "./utils/upload.js";
+import { authRouter } from "./routes/auth.js";
+import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
 import multer from "multer";
 
 
@@ -18,6 +20,38 @@ app.use(
   })
 );
 app.use(express.json());
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Session hydration (Issue 3)
+// Populates `req.user` when a valid `toktickit_session` cookie (or a Bearer
+// token) is present. It never blocks the request by itself, so Lab 1/Lab 2
+// routes without a session continue to behave exactly as before.
+// ---------------------------------------------------------------------------
+app.use(loadSession);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Authentication & session management (Issue 3)
+// ---------------------------------------------------------------------------
+app.use("/api/auth", authRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Requester identity bridge (Issue 3)
+// Prefer the authenticated session identity (`req.user`). When no session is
+// present we fall back to the legacy Lab 2 development header / parameter so
+// existing clients and the Lab 2 test-suite keep working unchanged.
+// ---------------------------------------------------------------------------
+function resolveRequesterId(req: Request): string | undefined {
+  if (req.user?.id) return req.user.id;
+  const fromBody =
+    req.body && typeof req.body.requesterId === "string" ? req.body.requesterId.trim() : undefined;
+  const fromHeader = req.headers["x-dev-requester-id"];
+  const fromQuery = typeof req.query.requesterId === "string" ? req.query.requesterId.trim() : undefined;
+  const resolved =
+    (fromBody && fromBody !== "" ? fromBody : undefined) ||
+    (typeof fromHeader === "string" && fromHeader !== "" ? fromHeader : undefined) ||
+    fromQuery;
+  return resolved;
+}
 
 // ---------------------------------------------------------------------------
 // Issue 2 — API health check
@@ -121,19 +155,22 @@ const handleTicketUpload = (req: Request, res: Response, next: NextFunction) => 
 // POST /api/tickets (Issue 4)
 // Create a new ticket with optional file attachments
 // ---------------------------------------------------------------------------
-app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response) => {
+app.post("/api/tickets", enforcePasswordChange, handleTicketUpload, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.body.requesterId || req.headers["x-dev-requester-id"]) as string;
+    const requesterId = resolveRequesterId(req);
     const { categoryId, relatedSystemId, requestedPriority, summary, description } = req.body;
     const files = (req.files as Express.Multer.File[]) || [];
 
     if (!requesterId) {
       return res.status(403).json({ error: "Forbidden: Requester identity context required" });
     }
-    const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
-    if (!requester || !requester.isActive) {
-      return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+    if (!req.user) {
+      // Legacy Lab 2 development-identity path (no authenticated session).
+      const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
+      if (!requester || !requester.isActive) {
+        return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+      }
     }
 
     if (!categoryId || typeof categoryId !== "string") {
@@ -220,18 +257,20 @@ app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response)
 // GET /api/tickets (Issue 6)
 // List all tickets owned by the current requester (strict data isolation)
 // ---------------------------------------------------------------------------
-app.get("/api/tickets", async (req: Request, res: Response) => {
+app.get("/api/tickets", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.headers["x-dev-requester-id"] || req.query.requesterId) as string;
+    const requesterId = resolveRequesterId(req);
 
     if (!requesterId) {
       return res.status(403).json({ error: "Forbidden: Requester identity context required" });
     }
 
-    const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
-    if (!requester || !requester.isActive) {
-      return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+    if (!req.user) {
+      const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
+      if (!requester || !requester.isActive) {
+        return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+      }
     }
 
     // --- Query parameters: server-side search / filter / sort / pagination ---
@@ -319,10 +358,10 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
 // GET /api/tickets/:id (Issue 6)
 // Retrieve detail of owned ticket with strict 403 ownership enforcement
 // ---------------------------------------------------------------------------
-app.get("/api/tickets/:id", async (req: Request, res: Response) => {
+app.get("/api/tickets/:id", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.headers["x-dev-requester-id"] || req.query.requesterId) as string;
+    const requesterId = resolveRequesterId(req);
     const { id } = req.params;
 
     if (!requesterId) {
@@ -366,10 +405,10 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
 // POST /api/tickets/:id/attachments (Issue 6)
 // Upload additional file attachment to an existing owned ticket
 // ---------------------------------------------------------------------------
-app.post("/api/tickets/:id/attachments", handleTicketUpload, async (req: Request, res: Response) => {
+app.post("/api/tickets/:id/attachments", enforcePasswordChange, handleTicketUpload, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.body.requesterId || req.headers["x-dev-requester-id"]) as string;
+    const requesterId = resolveRequesterId(req);
     const { id } = req.params;
     const files = (req.files as Express.Multer.File[]) || [];
 
@@ -428,10 +467,10 @@ app.post("/api/tickets/:id/attachments", handleTicketUpload, async (req: Request
 // GET /api/attachments/:id/download (Issue 6)
 // Download active file stream with ownership and soft removal enforcement
 // ---------------------------------------------------------------------------
-app.get("/api/attachments/:id/download", async (req: Request, res: Response) => {
+app.get("/api/attachments/:id/download", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.headers["x-dev-requester-id"] || req.query.requesterId) as string;
+    const requesterId = resolveRequesterId(req);
     const { id } = req.params;
 
     if (!requesterId) {
@@ -472,10 +511,10 @@ app.get("/api/attachments/:id/download", async (req: Request, res: Response) => 
 // DELETE /api/attachments/:id (Issue 6)
 // Soft-remove an attachment requiring mandatory removalReason
 // ---------------------------------------------------------------------------
-app.delete("/api/attachments/:id", async (req: Request, res: Response) => {
+app.delete("/api/attachments/:id", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.body.requesterId || req.headers["x-dev-requester-id"]) as string;
+    const requesterId = resolveRequesterId(req);
     const { removalReason } = req.body;
     const { id } = req.params;
 
