@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext.js";
 import { useRouter } from "../router.js";
 import { RoleBadge } from "./RoleBadge.js";
 
-export type HeaderTab = "my-tickets" | "create-ticket" | "admin";
+export type HeaderTab = "my-tickets" | "create-ticket" | "admin" | "staff-queue";
 
 interface HeaderProps {
   activeTab: HeaderTab;
@@ -49,9 +49,12 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     transition: "all 0.2s ease",
   });
 
-  // Role-aware navigation (ui-spec.md §4.3): Administrators get an "Admin" tab.
+  // Role-aware navigation (ui-spec.md §4.3): Administrators get an "Admin" tab,
+  // IT Staff (and Administrators) get the "My Queue" tab.
+  const isStaff = user?.role === "IT_STAFF" || user?.role === "ADMINISTRATOR";
   const navTabs: { key: HeaderTab; label: string }[] = [
     ...(user?.role === "ADMINISTRATOR" ? [{ key: "admin" as HeaderTab, label: "Admin" }] : []),
+    ...(isStaff ? [{ key: "staff-queue" as HeaderTab, label: "My Queue" }] : []),
     { key: "my-tickets", label: "My Tickets" },
     { key: "create-ticket", label: "＋ Create Ticket" },
   ];

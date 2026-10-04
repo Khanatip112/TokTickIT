@@ -114,5 +114,6 @@ export function needsPasswordChange(user: AuthUser | null): boolean {
 export function landingPathFor(user: AuthUser | null): string {
   if (!user) return "/login";
   if (user.role === "ADMINISTRATOR") return "/admin/users";
+  if (user.role === "IT_STAFF") return "/staff/queue";
   return "/my-tickets";
 }

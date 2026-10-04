@@ -484,3 +484,98 @@ export function generateTempPassword(): string {
   }
   return chars.join("");
 }
+
+// ---------------------------------------------------------------------------
+// Lab 3 — IT Staff Ticket Queue (Issue 6)
+// ---------------------------------------------------------------------------
+
+export type TicketPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
+export type StaffTicketStatus =
+  | "NEW"
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "PENDING"
+  | "WAITING_FOR_REQUESTER"
+  | "RESOLVED"
+  | "CLOSED"
+  | "REOPENED"
+  | "CANCELLED";
+
+export interface StaffTicket {
+  id: string;
+  ticketNumber: string;
+  summary: string;
+  description: string;
+  requestedPriority: TicketPriority;
+  itPriority: TicketPriority;
+  currentStatus: StaffTicketStatus;
+  createdAt: string;
+  updatedAt: string;
+  category: { id: string; name: string };
+  relatedSystem: { id: string; name: string };
+  requester: { id: string; name: string; email: string };
+  owner: { id: string; name: string; email: string } | null;
+  activeAttachmentsCount: number;
+  publicCommentsCount: number;
+  internalNotesCount: number;
+}
+
+export interface StaffQueueParams {
+  search?: string;
+  categoryId?: string;
+  status?: string;
+  requestedPriority?: string;
+  itPriority?: string;
+  /** Owner id, `"unassigned"`, or `"me"`. */
+  ownerId?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+  page?: number;
+  pageSize?: number;
+}
+
+export interface StaffTicketListResponse {
+  data: StaffTicket[];
+  pagination: Pagination;
+}
+
+export interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+}
+
+/** GET /api/staff/tickets — paginated, filterable, sortable system-wide queue. */
+export async function getStaffTickets(params: StaffQueueParams = {}): Promise<StaffTicketListResponse> {
+  const query = new URLSearchParams();
+  if (params.search) query.set("search", params.search);
+  if (params.categoryId) query.set("categoryId", params.categoryId);
+  if (params.status) query.set("status", params.status);
+  if (params.requestedPriority) query.set("requestedPriority", params.requestedPriority);
+  if (params.itPriority) query.set("itPriority", params.itPriority);
+  if (params.ownerId) query.set("ownerId", params.ownerId);
+  if (params.sortBy) query.set("sortBy", params.sortBy);
+  if (params.sortOrder) query.set("sortOrder", params.sortOrder);
+  if (params.page) query.set("page", String(params.page));
+  if (params.pageSize) query.set("pageSize", String(params.pageSize));
+
+  const qs = query.toString();
+  const res = await fetch(`${API_URL}/api/staff/tickets${qs ? `?${qs}` : ""}`, { credentials: "include" });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to load the ticket queue.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
+
+/** GET /api/staff/users — active IT Staff and Administrators for owner filters. */
+export async function getStaffUsers(): Promise<StaffUser[]> {
+  const res = await fetch(`${API_URL}/api/staff/users`, { credentials: "include" });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to load staff members.");
+    throw new ApiError(message, res.status, code);
+  }
+  return res.json();
+}
