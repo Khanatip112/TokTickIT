@@ -8,6 +8,7 @@ import { authRouter } from "./routes/auth.js";
 import { adminRouter } from "./routes/admin.routes.js";
 import { staffRouter } from "./routes/staff.routes.js";
 import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
+import { ticketDetailRouter } from "./routes/ticketDetail.routes.js";
 import multer from "multer";
 
 
@@ -47,6 +48,16 @@ app.use("/api/admin", adminRouter);
 // RBAC-guarded under /api/staff (IT_STAFF + ADMINISTRATOR only).
 // ---------------------------------------------------------------------------
 app.use("/api/staff", staffRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Ticket detail operations (Issue 7)
+// `/api/tickets/:id/claim|assign|it-priority|status` (IT Staff + Admin, guarded
+// by `requireRole` inside the router) and `/api/tickets/:id/resolve-indication`
+// (authenticated owning Requester). The sub-router only matches those paths,
+// so the legacy Lab 2 routes below (GET/POST /api/tickets, GET /api/tickets/:id)
+// are untouched.
+// ---------------------------------------------------------------------------
+app.use("/api/tickets", ticketDetailRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 — Requester identity bridge (Issue 3)

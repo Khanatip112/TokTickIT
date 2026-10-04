@@ -11,6 +11,7 @@ import { Login } from "./pages/Login.js";
 import { ChangePassword } from "./pages/ChangePassword.js";
 import { UserManagement } from "./pages/UserManagement.js";
 import { StaffTicketQueue } from "./pages/StaffTicketQueue.js";
+import { StaffTicketDetail } from "./pages/StaffTicketDetail.js";
 
 function LoadingScreen() {
   return (
@@ -82,25 +83,16 @@ function StaffShell() {
 }
 
 /**
- * Placeholder for the IT Staff ticket detail route (`/staff/tickets/:id`).
- * The full IT Staff detail screen is delivered by Issue 7.
+ * IT Staff ticket detail route (`/staff/tickets/:id`, Issue 7).
+ * Header + operational control panel (ui-spec §4.5).
  */
-function StaffTicketDetailPlaceholder({ ticketId }: { ticketId: string }) {
+function StaffTicketDetailShell({ ticketId }: { ticketId: string }) {
   const { navigate } = useRouter();
   return (
     <div className="min-vh-100 d-flex flex-column bg-light">
       <Header activeTab="staff-queue" setActiveTab={(tab) => navigate(pathForTab(tab))} />
       <main className="container-fluid px-4 py-4 flex-grow-1">
-        <div className="card-zen p-5 text-center shadow-sm">
-          <div className="fs-1 mb-2" aria-hidden="true">🧰</div>
-          <h2 className="h4 fw-bold text-zen-primary mb-2">Ticket Detail</h2>
-          <p className="text-muted mb-4">
-            Ticket <strong>{ticketId}</strong> — the IT Staff detail workspace arrives in Issue 7.
-          </p>
-          <button className="btn btn-zen-primary px-4" onClick={() => navigate("/staff/queue")}>
-            ← Back to My Queue
-          </button>
-        </div>
+        <StaffTicketDetail ticketId={ticketId} onBackToQueue={() => navigate("/staff/queue")} />
       </main>
     </div>
   );
@@ -223,7 +215,7 @@ function AppRoutes() {
     const ticketId = path.slice("/staff/tickets/".length);
     return (
       <ProtectedRoute>
-        <StaffTicketDetailPlaceholder ticketId={ticketId} />
+        <StaffTicketDetailShell ticketId={ticketId} />
       </ProtectedRoute>
     );
   }

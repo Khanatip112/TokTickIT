@@ -7,34 +7,25 @@ import {
   uploadAttachmentToTicket,
   softRemoveAttachment,
   getAttachmentDownloadUrl,
+  indicateProblemResolved,
 } from "../api";
+import { PriorityBadge } from "./PriorityBadge";
+import { TicketStatusBadge } from "./TicketStatusBadge";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
+/** Active statuses that may show the "Problem Appears Resolved" action (ui-spec §4.7). */
+const INDICATION_ACTIVE_STATUSES: Ticket["currentStatus"][] = [
+  "OPEN",
+  "IN_PROGRESS",
+  "WAITING_FOR_REQUESTER",
+];
 
 interface TicketDetailViewProps {
   ticketId: string;
   onBackToTickets?: () => void;
 }
-
-const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  NEW: { bg: "#EAF6EF", color: "#006B3C", label: "New" },
-  OPEN: { bg: "#e0f0ff", color: "#0066cc", label: "Open" },
-  IN_PROGRESS: { bg: "#fff3cd", color: "#856404", label: "In Progress" },
-  PENDING: { bg: "#f8d7da", color: "#842029", label: "Pending" },
-  RESOLVED: { bg: "#d1e7dd", color: "#0a3622", label: "Resolved" },
-  CLOSED: { bg: "#e2e3e5", color: "#41464b", label: "Closed" },
-};
-
-// Helper สำหรับดึง Style สีตาม Status
-const getStatusBadgeStyle = (status: string) => {
-  const badge = STATUS_BADGE[status] || { bg: "#e2e3e5", color: "#41464b" };
-  return {
-    backgroundColor: badge.bg,
-    color: badge.color,
-    borderColor: badge.color,
-  };
-};
 
 export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   ticketId,
@@ -56,6 +47,12 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   // Upload Additional Attachment State
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // "Problem Appears Resolved" indication state (BR-16 / FR-12, ui-spec §4.7)
+  const [showResolveModal, setShowResolveModal] = useState<boolean>(false);
+  const [isIndicating, setIsIndicating] = useState<boolean>(false);
+  const [indicationError, setIndicationError] = useState<string | null>(null);
+  const [indicationDone, setIndicationDone] = useState<boolean>(false);
 
   const fetchDetail = async () => {
     if (!user) return;
@@ -143,6 +140,23 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     }
   };
 
+  /** Confirms the Requester's resolution indication (status stays unchanged). */
+  const handleConfirmIndication = async () => {
+    if (!ticket) return;
+    setIsIndicating(true);
+    setIndicationError(null);
+    try {
+      await indicateProblemResolved(ticket.id);
+      setIndicationDone(true);
+      setShowResolveModal(false);
+    } catch (err: any) {
+      console.error("Resolution indication error:", err);
+      setIndicationError(err.message || "The resolution indication could not be recorded.");
+    } finally {
+      setIsIndicating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="card-zen p-5 text-center shadow-sm">
@@ -214,16 +228,15 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
             Submitted on {new Date(ticket.createdAt).toLocaleString()}
           </small>
         </div>
-        <div className="d-flex align-items-center gap-2">
-          <span className="badge bg-warning text-dark px-3 py-2 fs-6">
-            Priority: {ticket.requestedPriority}
+        <div className="d-flex align-items-center gap-3 flex-wrap">
+          {/* Read-only badges: requested priority + status (Zen Green tokens) */}
+          <span className="d-inline-flex align-items-center gap-2">
+            <span className="small text-muted">Requested Priority</span>
+            <PriorityBadge priority={ticket.requestedPriority} />
           </span>
-          {/* 2. Status Badge พร้อมสีสว่างชัดเจน */}
-          <span
-            className="badge px-3 py-2 fs-6 fw-bold border"
-            style={getStatusBadgeStyle(ticket.currentStatus)}
-          >
-            Status: {ticket.currentStatus}
+          <span className="d-inline-flex align-items-center gap-2">
+            <span className="small text-muted">Status</span>
+            <TicketStatusBadge status={ticket.currentStatus} />
           </span>
         </div>
       </div>
@@ -286,6 +299,54 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           {ticket.description}
         </div>
       </div>
+
+      {/* BR-16 / FR-12 — "Problem Appears Resolved" indication (status is NOT changed) */}
+      {INDICATION_ACTIVE_STATUSES.includes(ticket.currentStatus) &&
+        (indicationDone ? (
+          <div
+            className="alert mb-4 d-flex align-items-start gap-2"
+            role="status"
+            data-testid="resolution-indication-done"
+            style={{ backgroundColor: "#EAF6EF", border: "1px solid rgba(0, 107, 60, 0.15)", color: "#006B3C" }}
+          >
+            <span aria-hidden="true">✅</span>
+            <div>
+              <strong>Resolution indication recorded.</strong> IT Staff has been notified to verify
+              and formally resolve your ticket. The status has not changed yet.
+            </div>
+          </div>
+        ) : (
+          <div
+            className="card mb-4"
+            data-testid="resolve-indication-card"
+            style={{
+              backgroundColor: "#EAF6EF",
+              border: "1px solid rgba(0, 107, 60, 0.15)",
+              borderRadius: "0.75rem",
+            }}
+          >
+            <div className="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+              <div>
+                <h6 className="fw-bold mb-1" style={{ color: "#006B3C" }}>
+                  <span aria-hidden="true">ℹ️</span> Has your issue been resolved?
+                </h6>
+                <p className="text-secondary small mb-0">
+                  If your issue has been fixed, click below to notify IT Staff.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-zen-primary px-4"
+                onClick={() => {
+                  setIndicationError(null);
+                  setShowResolveModal(true);
+                }}
+              >
+                Problem Appears Resolved
+              </button>
+            </div>
+          </div>
+        ))}
 
       <div className="border-top pt-4 mt-4">
         <div className="d-flex align-items-center justify-content-between mb-3">
@@ -396,6 +457,68 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* "Problem Appears Resolved" confirmation modal (ui-spec §4.7) */}
+      {showResolveModal && (
+        <div
+          className="modal show d-block"
+          tabIndex={-1}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resolve-indication-modal-title"
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: "0.75rem" }}>
+              <div className="modal-header text-white" style={{ backgroundColor: "#006B3C" }}>
+                <h5 className="modal-title fw-bold" id="resolve-indication-modal-title">
+                  Problem Appears Resolved
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  aria-label="Close"
+                  onClick={() => setShowResolveModal(false)}
+                  disabled={isIndicating}
+                ></button>
+              </div>
+              <div className="modal-body p-4">
+                <p className="text-dark mb-3">
+                  Confirm that your issue has been resolved. This will notify IT Staff to formally
+                  close your ticket.
+                </p>
+                <div className="alert alert-secondary small mb-0">
+                  Your ticket status will not change until IT Staff verifies the fix.
+                </div>
+                {indicationError && (
+                  <div className="alert alert-danger py-2 small mt-3 mb-0" role="alert">
+                    {indicationError}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer border-top-0 px-4 pb-3">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowResolveModal(false)}
+                  disabled={isIndicating}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-zen-primary"
+                  data-testid="confirm-resolve-indication"
+                  onClick={handleConfirmIndication}
+                  disabled={isIndicating}
+                >
+                  {isIndicating ? "Submitting…" : "Confirm — Problem Resolved"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedAttachment && (
         <div
