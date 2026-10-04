@@ -1,49 +1,46 @@
 import { useState } from "react";
-import { RequesterProvider, useRequesterContext } from "./context/RequesterContext";
-import { Header } from "./components/Header";
-import { CreateTicketForm } from "./components/CreateTicketForm";
-import { MyTicketsList } from "./components/MyTicketsList";
-import { TicketDetailView } from "./components/TicketDetailView";
+import { AuthProvider, needsPasswordChange, useAuth } from "./context/AuthContext.js";
+import { Navigate, RouterProvider, useRouter } from "./router.js";
+import { Header } from "./components/Header.js";
+import { ProtectedRoute } from "./components/ProtectedRoute.js";
+import { CreateTicketForm } from "./components/CreateTicketForm.js";
+import { MyTicketsList } from "./components/MyTicketsList.js";
+import { TicketDetailView } from "./components/TicketDetailView.js";
+import { Login } from "./pages/Login.js";
+import { ChangePassword } from "./pages/ChangePassword.js";
 
-function MainContent() {
-  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">("my-tickets");
+function LoadingScreen() {
+  return (
+    <div className="min-vh-100 d-flex align-items-center justify-content-center bg-light">
+      <div className="text-center">
+        <div className="spinner-border text-zen-primary" role="status">
+          <span className="visually-hidden">Loading…</span>
+        </div>
+        <p className="mt-3 text-muted">Loading TokTickIT…</p>
+      </div>
+    </div>
+  );
+}
+
+/** Authenticated application shell: header + requester ticket views. */
+function AppShell() {
+  const { path, navigate } = useRouter();
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
-  const { currentRequester } = useRequesterContext();
+  const [activeTab, setActiveTab] = useState<"my-tickets" | "create-ticket">(
+    path === "/create-ticket" ? "create-ticket" : "my-tickets"
+  );
 
   const handleNavigateTab = (tab: "my-tickets" | "create-ticket") => {
-    setActiveTab(tab);
-
     setSelectedTicketId(null);
-
+    setActiveTab(tab);
+    navigate(tab === "create-ticket" ? "/create-ticket" : "/my-tickets");
   };
 
   return (
     <div className="min-vh-100 d-flex flex-column bg-light">
       <Header activeTab={activeTab} setActiveTab={handleNavigateTab} />
 
-      {/* เปลี่ยนเป็น container-fluid px-4 และปลดล็อค maxWidth ออกเพื่อให้ขยายเต็มจอ */}
       <main className="container-fluid px-4 py-4 flex-grow-1">
-        {/* Active Context Banner */}
-        <div className="card-zen p-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2 shadow-sm">
-          <div className="d-flex align-items-center gap-3 min-w-0 w-100">
-            <div className="bg-zen-pale text-zen-primary rounded-circle p-2 fs-5 flex-shrink-0">
-              👤
-            </div>
-            <div className="min-w-0 flex-grow-1">
-              <span className="text-muted small d-block">Active Development Identity Context</span>
-              <strong className="fs-5 text-zen-primary d-block d-sm-inline">
-                {currentRequester ? currentRequester.name : "No Requester Selected"}
-              </strong>
-              {currentRequester && (
-                <span className="ms-0 ms-sm-2 text-muted small d-block d-sm-inline text-break">
-                  ({currentRequester.email} • {currentRequester.department || "No Department"})
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Navigation & View Content */}
         {selectedTicketId ? (
           <TicketDetailView
             ticketId={selectedTicketId}
@@ -65,10 +62,50 @@ function MainContent() {
   );
 }
 
+/**
+ * Top-level routing (Issue 4):
+ * - `/login` is public (authenticated users are bounced to the app).
+ * - Unauthenticated users are redirected to `/login`.
+ * - Users flagged `requiresPasswordChange` are forced to `/change-password`.
+ * - Everything else is wrapped in `ProtectedRoute`.
+ */
+function AppRoutes() {
+  const { user, isLoading } = useAuth();
+  const { path } = useRouter();
+
+  if (isLoading) return <LoadingScreen />;
+
+  if (path === "/login") {
+    if (user && needsPasswordChange(user)) return <ChangePassword />;
+    if (user) return <Navigate to="/" replace />;
+    return <Login />;
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (needsPasswordChange(user)) return <ChangePassword />;
+
+  if (path === "/change-password") {
+    return (
+      <ProtectedRoute>
+        <ChangePassword />
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ProtectedRoute>
+      <AppShell />
+    </ProtectedRoute>
+  );
+}
+
 export default function App() {
   return (
-    <RequesterProvider>
-      <MainContent />
-    </RequesterProvider>
+    <AuthProvider>
+      <RouterProvider>
+        <AppRoutes />
+      </RouterProvider>
+    </AuthProvider>
   );
 }

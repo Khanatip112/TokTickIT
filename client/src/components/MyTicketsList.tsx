@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useRequesterContext } from "../context/RequesterContext.js";
+import { useAuth } from "../context/AuthContext.js";
 import { Ticket, Category, Pagination, getMyTickets, getCategories } from "../api.js";
 
 interface MyTicketsListProps {
@@ -46,8 +46,8 @@ const formatDate = (value: string) =>
   });
 
 export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCreateTicket }) => {
-  const { currentRequester } = useRequesterContext();
-  const requesterId = currentRequester?.id;
+  const { user } = useAuth();
+  const requesterId = user?.id;
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -182,12 +182,12 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
     return pages;
   };
 
-  if (!currentRequester) {
+  if (!user) {
     return (
       <div className="card-zen p-5 text-center shadow-sm">
         <div className="fs-1 mb-3">👤</div>
-        <h3 className="h5 text-zen-primary fw-bold">No Identity Selected</h3>
-        <p className="text-muted">Please select a development requester identity to view tickets.</p>
+        <h3 className="h5 text-zen-primary fw-bold">Not signed in</h3>
+        <p className="text-muted">Please sign in to view your tickets.</p>
       </div>
     );
   }
@@ -405,7 +405,7 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
                             {statusInfo.label}
                           </span>
                         </td>
-                        <td className="text-secondary text-nowrap">{t.requester?.name || currentRequester.name}</td>
+                        <td className="text-secondary text-nowrap">{t.requester?.name || user.name}</td>
                         <td className="pe-3 text-secondary text-nowrap">{formatDate(t.updatedAt || t.createdAt)}</td>
                       </tr>
                     );

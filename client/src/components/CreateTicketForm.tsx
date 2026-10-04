@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ChangeEvent, FormEvent } from "react";
-import { useRequesterContext } from "../context/RequesterContext";
+import { useAuth } from "../context/AuthContext";
 import {
   Category,
   RelatedSystem,
@@ -21,7 +21,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
   onSuccessRedirect,
   onCancel,
 }) => {
-  const { currentRequester } = useRequesterContext();
+  const { user } = useAuth();
 
   // Reference Data State
   const [categories, setCategories] = useState<Category[]>([]);
@@ -131,8 +131,8 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
     e.preventDefault();
     setApiError(null);
 
-    if (!currentRequester) {
-      setApiError("No active Development Requester selected. Please select a requester identity.");
+    if (!user) {
+      setApiError("Your session has expired. Please sign in again.");
       return;
     }
 
@@ -142,7 +142,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
 
     try {
       const formData = new FormData();
-      formData.append("requesterId", currentRequester.id);
+      formData.append("requesterId", user.id);
       formData.append("categoryId", categoryId);
       formData.append("relatedSystemId", relatedSystemId);
       formData.append("requestedPriority", requestedPriority);
@@ -153,7 +153,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
         formData.append("attachments", file);
       });
 
-      const ticket = await createTicket(formData, currentRequester.id);
+      const ticket = await createTicket(formData, user.id);
       setCreatedTicket(ticket);
     } catch (err: any) {
       console.error("Ticket submission error:", err);
@@ -273,9 +273,9 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
                 type="text"
                 className="form-control form-control-sm bg-zen-readonly text-dark fw-semibold border-secondary-subtle"
                 value={
-                  currentRequester
-                    ? `${currentRequester.name} (${currentRequester.email})`
-                    : "No active requester context"
+                  user
+                    ? `${user.name} (${user.email})`
+                    : "No active session"
                 }
                 readOnly
                 disabled

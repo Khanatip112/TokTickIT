@@ -1,5 +1,5 @@
 import React, { useState, useEffect, ChangeEvent } from "react";
-import { useRequesterContext } from "../context/RequesterContext";
+import { useAuth } from "../context/AuthContext";
 import {
   Ticket,
   Attachment,
@@ -40,7 +40,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   ticketId,
   onBackToTickets,
 }) => {
-  const { currentRequester } = useRequesterContext();
+  const { user } = useAuth();
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -58,12 +58,12 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const fetchDetail = async () => {
-    if (!currentRequester) return;
+    if (!user) return;
     setIsLoading(true);
     setError(null);
     setIs403(false);
     try {
-      const data = await getTicketDetail(ticketId, currentRequester.id);
+      const data = await getTicketDetail(ticketId, user.id);
       setTicket(data);
     } catch (err: any) {
       console.error("Error fetching ticket detail:", err);
@@ -80,10 +80,10 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
   useEffect(() => {
     fetchDetail();
-  }, [ticketId, currentRequester?.id]);
+  }, [ticketId, user?.id]);
 
   const handleConfirmRemoval = async () => {
-    if (!selectedAttachment || !currentRequester) return;
+    if (!selectedAttachment || !user) return;
     const trimmedReason = removalReason.trim();
     if (trimmedReason.length < 3) {
       setRemovalError("Removal reason must be at least 3 characters long.");
@@ -93,7 +93,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     setIsRemoving(true);
     setRemovalError(null);
     try {
-      await softRemoveAttachment(selectedAttachment.id, trimmedReason, currentRequester.id);
+      await softRemoveAttachment(selectedAttachment.id, trimmedReason, user.id);
       setSelectedAttachment(null);
       setRemovalReason("");
       await fetchDetail();
@@ -106,7 +106,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   };
 
   const handleUploadFiles = async (filesToAdd: FileList | File[]) => {
-    if (!currentRequester || !ticket) return;
+    if (!user || !ticket) return;
     setUploadError(null);
 
     const files = Array.from(filesToAdd);
@@ -130,10 +130,10 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append("requesterId", currentRequester.id);
+      formData.append("requesterId", user.id);
       files.forEach((f) => formData.append("attachments", f));
 
-      await uploadAttachmentToTicket(ticket.id, formData, currentRequester.id);
+      await uploadAttachmentToTicket(ticket.id, formData, user.id);
       await fetchDetail();
     } catch (err: any) {
       console.error("Upload error:", err);
@@ -339,7 +339,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <a
-                      href={getAttachmentDownloadUrl(att.id, currentRequester?.id || "")}
+                      href={getAttachmentDownloadUrl(att.id, user?.id || "")}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"

@@ -13,7 +13,7 @@ export interface RelatedSystem {
   description?: string | null;
 }
 
-export interface DevRequester {
+export interface RequesterSummary {
   id: string;
   name: string;
   email: string;
@@ -47,7 +47,7 @@ export interface Ticket {
   description: string;
   createdAt: string;
   updatedAt: string;
-  requester?: DevRequester;
+  requester?: RequesterSummary;
   category?: Category;
   relatedSystem?: RelatedSystem | null;
   attachments?: Attachment[];
@@ -70,6 +70,125 @@ export interface Pagination {
 export interface PaginatedTickets {
   data: Ticket[];
   pagination: Pagination;
+}
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Authentication (Issue 4)
+// ---------------------------------------------------------------------------
+
+export type UserRole = "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR";
+
+/** Sanitized authenticated user profile returned by the auth API. */
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  department: string | null;
+  isActive: boolean;
+  /** The user must change their password before using the app. */
+  requiresPasswordChange: boolean;
+}
+
+interface RawAuthUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  department?: string | null;
+  isActive?: boolean;
+  requiresPasswordChange?: boolean;
+  mustChangePassword?: boolean;
+}
+
+/** Error thrown by API helpers, carrying the HTTP status and server error code. */
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+function normalizeAuthUser(raw: RawAuthUser): AuthUser {
+  return {
+    id: raw.id,
+    name: raw.name,
+    email: raw.email,
+    role: raw.role,
+    department: raw.department ?? null,
+    isActive: raw.isActive ?? true,
+    requiresPasswordChange: raw.requiresPasswordChange ?? raw.mustChangePassword ?? false,
+  };
+}
+
+async function readError(res: Response, fallback: string): Promise<{ message: string; code?: string }> {
+  try {
+    const body = await res.json();
+    const err = body?.error;
+    if (typeof err === "string") return { message: err };
+    if (err && typeof err === "object") {
+      return { message: typeof err.message === "string" ? err.message : fallback, code: err.code };
+    }
+    if (typeof body?.message === "string") return { message: body.message };
+  } catch {
+    /* non-JSON body — fall through */
+  }
+  return { message: fallback };
+}
+
+/** Authenticates with email + password and establishes the session cookie. */
+export async function login(email: string, password: string): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/auth/login`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Invalid email or password. Please try again.");
+    throw new ApiError(message, res.status, code);
+  }
+  const data = await res.json();
+  return normalizeAuthUser(data.user as RawAuthUser);
+}
+
+/** Destroys the server session and clears the auth cookie. */
+export async function logout(): Promise<void> {
+  await fetch(`${API_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
+}
+
+/** Returns the current authenticated user, or `null` when there is no session. */
+export async function getCurrentUser(): Promise<AuthUser | null> {
+  const res = await fetch(`${API_URL}/api/auth/me`, { credentials: "include" });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new ApiError("Failed to load the current session.", res.status);
+  const data = await res.json();
+  return normalizeAuthUser(data.user as RawAuthUser);
+}
+
+/** Changes the current user's password (used for the mandatory first-login flow). */
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  confirmPassword: string
+): Promise<AuthUser> {
+  const res = await fetch(`${API_URL}/api/auth/change-password`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword, confirmPassword }),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to change password.");
+    throw new ApiError(message, res.status, code);
+  }
+  const data = await res.json();
+  return normalizeAuthUser(data.user as RawAuthUser);
 }
 
 export interface TicketQueryParams {
@@ -100,12 +219,6 @@ export async function getCategories(): Promise<Category[]> {
   return res.json();
 }
 
-export async function getDevRequesters(): Promise<DevRequester[]> {
-  const res = await fetch(`${API_URL}/api/dev-requesters`);
-  if (!res.ok) throw new Error("Failed to fetch development requesters");
-  return res.json();
-}
-
 export async function checkSystem(): Promise<SystemStatus> {
   try {
     await checkHealth();
@@ -118,6 +231,7 @@ export async function checkSystem(): Promise<SystemStatus> {
 
 export async function getTicketDetail(ticketId: string, requesterId: string): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}`, {
+    credentials: "include",
     headers: { "x-dev-requester-id": requesterId },
   });
   const data = await res.json();
@@ -132,6 +246,7 @@ export async function getTicketDetail(ticketId: string, requesterId: string): Pr
 export async function uploadAttachmentToTicket(ticketId: string, formData: FormData, requesterId: string): Promise<Attachment[]> {
   const res = await fetch(`${API_URL}/api/tickets/${ticketId}/attachments`, {
     method: "POST",
+    credentials: "include",
     headers: { "x-dev-requester-id": requesterId },
     body: formData,
   });
@@ -148,6 +263,7 @@ export async function softRemoveAttachment(
   // เปลี่ยน Method เป็น DELETE และลบ /soft-remove ท้าย URL ออก
   const res = await fetch(`${API_URL}/api/attachments/${attachmentId}`, {
     method: "DELETE",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       "x-dev-requester-id": requesterId,
@@ -183,6 +299,7 @@ export async function getRelatedSystems(): Promise<RelatedSystem[]> {
 export async function createTicket(formData: FormData, requesterId: string): Promise<Ticket> {
   const res = await fetch(`${API_URL}/api/tickets`, {
     method: "POST",
+    credentials: "include",
     headers: {
       "x-dev-requester-id": requesterId,
     },
@@ -217,6 +334,7 @@ export async function getMyTickets(
 
   const qs = query.toString();
   const res = await fetch(`${API_URL}/api/tickets${qs ? `?${qs}` : ""}`, {
+    credentials: "include",
     headers: {
       "x-dev-requester-id": requesterId,
     },
