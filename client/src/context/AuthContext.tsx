@@ -109,3 +109,10 @@ export function useAuth(): AuthContextValue {
 export function needsPasswordChange(user: AuthUser | null): boolean {
   return !!user && user.requiresPasswordChange === true;
 }
+
+/** Role-specific landing route used after a successful login / password change. */
+export function landingPathFor(user: AuthUser | null): string {
+  if (!user) return "/login";
+  if (user.role === "ADMINISTRATOR") return "/admin/users";
+  return "/my-tickets";
+}

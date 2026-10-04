@@ -3,9 +3,11 @@ import { useAuth } from "../context/AuthContext.js";
 import { useRouter } from "../router.js";
 import { RoleBadge } from "./RoleBadge.js";
 
+export type HeaderTab = "my-tickets" | "create-ticket" | "admin";
+
 interface HeaderProps {
-  activeTab: "my-tickets" | "create-ticket";
-  setActiveTab: (tab: "my-tickets" | "create-ticket") => void;
+  activeTab: HeaderTab;
+  setActiveTab: (tab: HeaderTab) => void;
 }
 
 function initialsOf(name: string): string {
@@ -47,6 +49,13 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     transition: "all 0.2s ease",
   });
 
+  // Role-aware navigation (ui-spec.md §4.3): Administrators get an "Admin" tab.
+  const navTabs: { key: HeaderTab; label: string }[] = [
+    ...(user?.role === "ADMINISTRATOR" ? [{ key: "admin" as HeaderTab, label: "Admin" }] : []),
+    { key: "my-tickets", label: "My Tickets" },
+    { key: "create-ticket", label: "＋ Create Ticket" },
+  ];
+
   return (
     <header
       className="sticky-top shadow-sm"
@@ -69,26 +78,20 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
           </div>
         </div>
 
-        {/* Navigation tabs */}
+        {/* Navigation tabs (role-aware) */}
         <nav className="d-flex gap-1" role="navigation" aria-label="Main navigation">
-          <button
-            id="nav-tab-my-tickets"
-            type="button"
-            className="btn btn-sm px-3 py-2 fw-semibold"
-            style={navButtonStyle(activeTab === "my-tickets")}
-            onClick={() => setActiveTab("my-tickets")}
-          >
-            My Tickets
-          </button>
-          <button
-            id="nav-tab-create-ticket"
-            type="button"
-            className="btn btn-sm px-3 py-2 fw-semibold"
-            style={navButtonStyle(activeTab === "create-ticket")}
-            onClick={() => setActiveTab("create-ticket")}
-          >
-            ＋ Create Ticket
-          </button>
+          {navTabs.map((tab) => (
+            <button
+              key={tab.key}
+              id={`nav-tab-${tab.key}`}
+              type="button"
+              className="btn btn-sm px-3 py-2 fw-semibold"
+              style={navButtonStyle(activeTab === tab.key)}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </nav>
 
         {/* Profile menu */}

@@ -1,5 +1,5 @@
 import React, { ChangeEvent, FormEvent, useState } from "react";
-import { useAuth } from "../context/AuthContext.js";
+import { landingPathFor, useAuth } from "../context/AuthContext.js";
 import { useRouter } from "../router.js";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -39,8 +39,8 @@ export const Login: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await login(email.trim(), password);
-      navigate("/");
+      const loggedIn = await login(email.trim(), password);
+      navigate(landingPathFor(loggedIn));
     } catch (err) {
       const message =
         err instanceof Error && err.message
