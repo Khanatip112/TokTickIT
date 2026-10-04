@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { TicketDetailView } from "../../src/components/TicketDetailView.js";
 import * as api from "../../src/api.js";
-import { RequesterProvider } from "../../src/context/RequesterContext.js";
+import { AuthProvider } from "../../src/context/AuthContext.js";
 
-const mockRequester: api.DevRequester = {
+const mockUser: api.AuthUser = {
   id: "req-1",
   name: "Jennifer Anderson",
   email: "jennifer.anderson@kmutt.ac.th",
+  role: "REQUESTER",
   department: "Computer Engineering",
+  isActive: true,
+  requiresPasswordChange: false,
 };
 
 const mockTicket: api.Ticket = {
@@ -24,7 +27,12 @@ const mockTicket: api.Ticket = {
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   category: { id: "cat-1", name: "Hardware" },
-  requester: mockRequester,
+  requester: {
+    id: "req-1",
+    name: "Jennifer Anderson",
+    email: "jennifer.anderson@kmutt.ac.th",
+    department: "Computer Engineering",
+  },
   attachments: [
     {
       id: "att-1",
@@ -40,20 +48,24 @@ const mockTicket: api.Ticket = {
   ],
 };
 
+function renderDetail(ticketId: string) {
+  return render(
+    <AuthProvider>
+      <TicketDetailView ticketId={ticketId} />
+    </AuthProvider>
+  );
+}
+
 describe("TicketDetailView Component", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    vi.spyOn(api, "getDevRequesters").mockResolvedValue([mockRequester]);
+    vi.spyOn(api, "getCurrentUser").mockResolvedValue(mockUser);
   });
 
   it("renders read-only ticket detail and active attachment download button", async () => {
     vi.spyOn(api, "getTicketDetail").mockResolvedValueOnce(mockTicket);
 
-    render(
-      <RequesterProvider>
-        <TicketDetailView ticketId="tkt-123" />
-      </RequesterProvider>
-    );
+    renderDetail("tkt-123");
 
     expect(await screen.findByText("TKT-2026-000123")).toBeInTheDocument();
     expect(screen.getByText("Laptop battery drains quickly")).toBeInTheDocument();
@@ -66,11 +78,7 @@ describe("TicketDetailView Component", () => {
     error403.status = 403;
     vi.spyOn(api, "getTicketDetail").mockRejectedValueOnce(error403);
 
-    render(
-      <RequesterProvider>
-        <TicketDetailView ticketId="tkt-999" />
-      </RequesterProvider>
-    );
+    renderDetail("tkt-999");
 
     expect(await screen.findByText(/403 Forbidden - Access Denied/i)).toBeInTheDocument();
   });
@@ -78,11 +86,7 @@ describe("TicketDetailView Component", () => {
   it("opens soft removal modal and requires removal reason", async () => {
     vi.spyOn(api, "getTicketDetail").mockResolvedValueOnce(mockTicket);
 
-    render(
-      <RequesterProvider>
-        <TicketDetailView ticketId="tkt-123" />
-      </RequesterProvider>
-    );
+    renderDetail("tkt-123");
 
     expect(await screen.findByText("diagnostic_report.pdf")).toBeInTheDocument();
 

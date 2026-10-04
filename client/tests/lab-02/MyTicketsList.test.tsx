@@ -2,14 +2,17 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MyTicketsList } from "../../src/components/MyTicketsList";
 import * as api from "../../src/api";
-import { RequesterProvider } from "../../src/context/RequesterContext";
+import { AuthProvider } from "../../src/context/AuthContext";
 import React from "react";
 
-const mockRequester: api.DevRequester = {
+const mockUser: api.AuthUser = {
   id: "req-1",
   name: "Jennifer Anderson",
   email: "jennifer.anderson@kmutt.ac.th",
+  role: "REQUESTER",
   department: "Computer Engineering",
+  isActive: true,
+  requiresPasswordChange: false,
 };
 
 const mockTickets: api.Ticket[] = [
@@ -48,22 +51,27 @@ const emptyPagination: api.Pagination = {
   hasPreviousPage: false,
 };
 
+function renderList(props: { onViewTicket?: (id: string) => void; onCreateTicket?: () => void } = {}) {
+  return render(
+    <AuthProvider>
+      <MyTicketsList
+        onViewTicket={props.onViewTicket ?? vi.fn()}
+        onCreateTicket={props.onCreateTicket ?? vi.fn()}
+      />
+    </AuthProvider>
+  );
+}
+
 describe("MyTicketsList Component", () => {
   beforeEach(() => {
-    localStorage.setItem("toktickit_requester_id", "req-1");
     vi.restoreAllMocks();
-    vi.spyOn(api, "getDevRequesters").mockResolvedValue([mockRequester]);
+    vi.spyOn(api, "getCurrentUser").mockResolvedValue(mockUser);
     vi.spyOn(api, "getCategories").mockResolvedValue([]);
   });
 
   it("renders list of tickets owned by requester", async () => {
     vi.spyOn(api, "getMyTickets").mockResolvedValue({ data: mockTickets, pagination: mockPagination });
-
-    render(
-      <RequesterProvider>
-        <MyTicketsList onViewTicket={vi.fn()} onCreateTicket={vi.fn()} />
-      </RequesterProvider>
-    );
+    renderList();
 
     expect((await screen.findAllByText("TKT-2026-000001")).length).toBeGreaterThan(0);
     expect(screen.getAllByText("Laptop battery drains quickly").length).toBeGreaterThan(0);
@@ -71,17 +79,10 @@ describe("MyTicketsList Component", () => {
 
   it("shows empty state when requester has no tickets", async () => {
     vi.spyOn(api, "getMyTickets").mockResolvedValue({ data: [], pagination: emptyPagination });
-
-    render(
-      <RequesterProvider>
-        <MyTicketsList onViewTicket={vi.fn()} onCreateTicket={vi.fn()} />
-      </RequesterProvider>
-    );
+    renderList();
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/No tickets/i) || screen.getByText(/No tickets found/i)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/No tickets/i)).toBeInTheDocument();
     });
   });
 
@@ -89,11 +90,7 @@ describe("MyTicketsList Component", () => {
     vi.spyOn(api, "getMyTickets").mockResolvedValue({ data: mockTickets, pagination: mockPagination });
     const onViewTicketMock = vi.fn();
 
-    render(
-      <RequesterProvider>
-        <MyTicketsList onViewTicket={onViewTicketMock} onCreateTicket={vi.fn()} />
-      </RequesterProvider>
-    );
+    renderList({ onViewTicket: onViewTicketMock });
 
     const ticketNoCells = await screen.findAllByText("TKT-2026-000001");
     fireEvent.click(ticketNoCells[0]);

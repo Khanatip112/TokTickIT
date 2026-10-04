@@ -169,3 +169,29 @@ input:disabled {
     padding-right: 0.75rem !important;
   }
 }
+
+/* ==========================================================================
+   Lab 3 — Authentication pages & profile menu (Issue 4)
+   ========================================================================== */
+
+.auth-page {
+  background:
+    radial-gradient(1200px 400px at 50% -10%, #EAF6EF 0%, transparent 60%),
+    var(--zen-background);
+}
+
+.auth-card {
+  border-radius: var(--zen-radius);
+  box-shadow: 0 4px 20px rgba(0, 107, 60, 0.08);
+}
+
+.profile-menu {
+  border-radius: var(--zen-radius-sm);
+  overflow: hidden;
+  animation: fadeIn 0.15s ease both;
+}
+
+.profile-menu .btn-link:hover {
+  background-color: var(--zen-pale);
+}
+
