@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import fs from "fs";
 import { getPrisma } from "./prisma.js";
+import type { Prisma, Priority } from "@prisma/client";
 import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadMiddleware } from "./utils/upload.js";
 import { authRouter } from "./routes/auth.js";
@@ -171,17 +172,18 @@ app.get("/api/related-systems", async (_req: Request, res: Response) => {
 
 // Multer upload error handling wrapper
 const handleTicketUpload = (req: Request, res: Response, next: NextFunction) => {
-  uploadMiddleware.array("attachments", 10)(req, res, (err: any) => {
+  uploadMiddleware.array("attachments", 10)(req, res, (err: unknown) => {
     if (err) {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           return res.status(413).json({ error: "Payload Too Large: File size exceeds 5MB limit" });
         }
       }
-      if (err.message && err.message.startsWith("INVALID_MIME_TYPE")) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.startsWith("INVALID_MIME_TYPE")) {
         return res.status(400).json({ error: "Bad Request: Only JPG, PNG, WEBP, and PDF files are allowed" });
       }
-      return res.status(400).json({ error: err.message || "File upload error" });
+      return res.status(400).json({ error: message || "File upload error" });
     }
     next();
   });
@@ -252,8 +254,8 @@ app.post("/api/tickets", enforcePasswordChange, handleTicketUpload, async (req: 
         requesterId,
         categoryId,
         relatedSystemId,
-        requestedPriority: requestedPriority as any,
-        itPriority: requestedPriority as any,
+        requestedPriority: requestedPriority as Priority,
+        itPriority: requestedPriority as Priority,
         currentStatus: "NEW",
         summary: trimmedSummary,
         description: trimmedDescription,
@@ -338,7 +340,7 @@ app.get("/api/tickets", enforcePasswordChange, async (req: Request, res: Respons
     ] as const) ?? "createdAt";
     const sortOrder = req.query.sortOrder === "asc" ? "asc" : "desc";
 
-    const where: any = { requesterId };
+    const where: Prisma.TicketWhereInput = { requesterId };
     if (categoryId) where.categoryId = categoryId;
     if (requestedPriority) where.requestedPriority = requestedPriority;
     if (currentStatus) where.currentStatus = currentStatus;
@@ -362,7 +364,7 @@ app.get("/api/tickets", enforcePasswordChange, async (req: Request, res: Respons
             select: { id: true },
           },
         },
-        orderBy: { [sortBy]: sortOrder } as any,
+        orderBy: { [sortBy]: sortOrder } as Prisma.TicketOrderByWithRelationInput,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),

@@ -74,9 +74,9 @@ describe("TicketDetailView Component", () => {
   });
 
   it("displays 403 Forbidden state when user does not own ticket", async () => {
-    const error403: any = new Error("Forbidden: You do not own this ticket");
-    error403.status = 403;
-    vi.spyOn(api, "getTicketDetail").mockRejectedValueOnce(error403);
+    vi.spyOn(api, "getTicketDetail").mockRejectedValueOnce(
+      new api.ApiError("Forbidden: You do not own this ticket", 403)
+    );
 
     renderDetail("tkt-999");
 

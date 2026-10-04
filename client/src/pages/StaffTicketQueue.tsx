@@ -8,7 +8,6 @@ import {
   getStaffTickets,
   getStaffUsers,
 } from "../api.js";
-import { useAuth } from "../context/AuthContext.js";
 import { TicketStatusBadge, TICKET_STATUS_OPTIONS } from "../components/TicketStatusBadge.js";
 import { PriorityBadge, PRIORITY_OPTIONS } from "../components/PriorityBadge.js";
 
@@ -37,8 +36,6 @@ interface StaffTicketQueueProps {
  * no-results states, error banners, and pagination controls.
  */
 export const StaffTicketQueue: React.FC<StaffTicketQueueProps> = ({ onViewTicket }) => {
-  const { user } = useAuth();
-
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);

@@ -3,9 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:e2e": "playwright test"
+    "typecheck": "npm --prefix client run typecheck && npm --prefix server run typecheck",
+    "lint": "eslint .",
+    "test:e2e": "npm --prefix server run prisma:seed && playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.49.0",
+    "eslint": "^9.17.0",
+    "typescript-eslint": "^8.18.0"
   }
 }

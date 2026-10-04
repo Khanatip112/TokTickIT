@@ -18,16 +18,11 @@ const EMAIL = {
 
 const createdUserIds: string[] = [];
 let staffId = "";
-let adminId = "";
-let otherStaffId = "";
 let requesterId = "";
-let otherRequesterId = "";
 let categoryId = "";
 let systemId = "";
 
 const PREFIX = `C-${STAMP}`;
-
-const tid: Record<string, string> = {};
 
 async function createTestUser(email: string, fullName: string, role: "REQUESTER" | "IT_STAFF" | "ADMINISTRATOR") {
   const passwordHash = await bcrypt.hash(PASSWORD, 10);
@@ -66,10 +61,10 @@ async function login(email: string) {
 
 beforeAll(async () => {
   staffId = await createTestUser(EMAIL.staff, `Comments Staff ${STAMP}`, "IT_STAFF");
-  adminId = await createTestUser(EMAIL.admin, `Comments Admin ${STAMP}`, "ADMINISTRATOR");
-  otherStaffId = await createTestUser(EMAIL.otherStaff, `Comments Other Staff ${STAMP}`, "IT_STAFF");
+  await createTestUser(EMAIL.admin, `Comments Admin ${STAMP}`, "ADMINISTRATOR");
+  await createTestUser(EMAIL.otherStaff, `Comments Other Staff ${STAMP}`, "IT_STAFF");
   requesterId = await createTestUser(EMAIL.requester, `Comments Requester ${STAMP}`, "REQUESTER");
-  otherRequesterId = await createTestUser(EMAIL.otherRequester, `Comments Other Requester ${STAMP}`, "REQUESTER");
+  await createTestUser(EMAIL.otherRequester, `Comments Other Requester ${STAMP}`, "REQUESTER");
 
   const category = await prisma.category.create({ data: { name: `Comments Category ${STAMP}`, description: "Comments/notes API tests" } });
   const system = await prisma.relatedSystem.create({ data: { name: `Comments System ${STAMP}`, code: `CSYS-${STAMP}`, description: "Comments/notes API tests" } });

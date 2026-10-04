@@ -60,18 +60,6 @@ const firstPage: api.StaffTicketListResponse = {
   },
 };
 
-const secondPage: api.StaffTicketListResponse = {
-  data: [11, 12].map((i) => makeTicket(i)),
-  pagination: {
-    totalCount: 25,
-    page: 2,
-    pageSize: 10,
-    totalPages: 3,
-    hasNextPage: true,
-    hasPreviousPage: true,
-  },
-};
-
 const emptyPage: api.StaffTicketListResponse = {
   data: [],
   pagination: { totalCount: 0, page: 1, pageSize: 10, totalPages: 0, hasNextPage: false, hasPreviousPage: false },

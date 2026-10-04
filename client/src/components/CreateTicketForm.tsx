@@ -55,7 +55,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
         setRelatedSystems(syss);
         if (cats.length > 0) setCategoryId(cats[0].id.toString());
         if (syss.length > 0) setRelatedSystemId(syss[0].id.toString());
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error loading reference data:", err);
       } finally {
         setIsDataLoading(false);
@@ -155,10 +155,12 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
 
       const ticket = await createTicket(formData, user.id);
       setCreatedTicket(ticket);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Ticket submission error:", err);
       setApiError(
-        err.message || "Failed to submit ticket. Server error (500). Your form data has been preserved."
+        err instanceof Error
+          ? err.message
+          : "Failed to submit ticket. Server error (500). Your form data has been preserved."
       );
     } finally {
       setIsSubmitting(false);
@@ -345,7 +347,7 @@ export const CreateTicketForm: React.FC<CreateTicketFormProps> = ({
               id="requestedPriority"
               className="form-select"
               value={requestedPriority}
-              onChange={(e) => setRequestedPriority(e.target.value as any)}
+              onChange={(e) => setRequestedPriority(e.target.value as "LOW" | "MEDIUM" | "HIGH" | "URGENT")}
               disabled={isSubmitting}
             >
               <option value="LOW">Low - Minor issue / inquiry</option>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, ChangeEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
+  ApiError,
   Ticket,
   Attachment,
   TicketComment,
@@ -75,13 +76,13 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     try {
       const data = await getTicketDetail(ticketId, user.id);
       setTicket(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error fetching ticket detail:", err);
-      if (err.status === 403) {
+      if (err instanceof ApiError && err.status === 403) {
         setIs403(true);
         setError("Access Denied: You do not have permission to view or manage this support ticket.");
       } else {
-        setError(err.message || "Failed to load ticket details");
+        setError(err instanceof Error ? err.message : "Failed to load ticket details");
       }
     } finally {
       setIsLoading(false);
@@ -99,8 +100,8 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
       const list = await getTicketComments(ticketId);
       setComments(list);
       setCommentsError(null);
-    } catch (err: any) {
-      setCommentsError(err?.message || "Failed to load public comments.");
+    } catch (err) {
+      setCommentsError(err instanceof Error ? err.message : "Failed to load public comments.");
     }
   };
 
@@ -118,8 +119,8 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
       const created = await postTicketComment(ticketId, content);
       setComments((prev) => [...prev, created]);
       setCommentDraft("");
-    } catch (err: any) {
-      setCommentsError(err.message || "Failed to post the comment.");
+    } catch (err) {
+      setCommentsError(err instanceof Error ? err.message : "Failed to post the comment.");
     } finally {
       setIsPostingComment(false);
     }
@@ -140,9 +141,9 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
       setSelectedAttachment(null);
       setRemovalReason("");
       await fetchDetail();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Soft removal error:", err);
-      setRemovalError(err.message || "Failed to soft-remove attachment");
+      setRemovalError(err instanceof Error ? err.message : "Failed to soft-remove attachment");
     } finally {
       setIsRemoving(false);
     }
@@ -178,9 +179,9 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
       await uploadAttachmentToTicket(ticket.id, formData, user.id);
       await fetchDetail();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Upload error:", err);
-      setUploadError(err.message || "Failed to upload file attachment");
+      setUploadError(err instanceof Error ? err.message : "Failed to upload file attachment");
     } finally {
       setIsUploading(false);
     }
@@ -195,9 +196,11 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
       await indicateProblemResolved(ticket.id);
       setIndicationDone(true);
       setShowResolveModal(false);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Resolution indication error:", err);
-      setIndicationError(err.message || "The resolution indication could not be recorded.");
+      setIndicationError(
+        err instanceof Error ? err.message : "The resolution indication could not be recorded."
+      );
     } finally {
       setIsIndicating(false);
     }

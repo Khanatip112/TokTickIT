@@ -43,19 +43,17 @@ async function createUser(opts: {
 }
 
 let activeUserId: string;
-let inactiveUserId: string;
-let wallUserId: string;
 let changeUserId: string;
 
 beforeAll(async () => {
   activeUserId = await createUser({ email: EMAIL.active, role: "REQUESTER", isActive: true, mustChangePassword: false });
-  inactiveUserId = await createUser({
+  await createUser({
     email: EMAIL.inactive,
     role: "REQUESTER",
     isActive: false,
     mustChangePassword: false,
   });
-  wallUserId = await createUser({ email: EMAIL.wall, role: "IT_STAFF", isActive: true, mustChangePassword: true });
+  await createUser({ email: EMAIL.wall, role: "IT_STAFF", isActive: true, mustChangePassword: true });
   changeUserId = await createUser({ email: EMAIL.change, role: "REQUESTER", isActive: true, mustChangePassword: true });
 });
 
