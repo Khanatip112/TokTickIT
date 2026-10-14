@@ -2,8 +2,15 @@ import express, { Request, Response, NextFunction } from "express";
 import cors from "cors";
 import fs from "fs";
 import { getPrisma } from "./prisma.js";
+import type { Prisma, Priority } from "@prisma/client";
 import { generateTicketNumber } from "./utils/ticketNumber.js";
 import { uploadMiddleware } from "./utils/upload.js";
+import { authRouter } from "./routes/auth.js";
+import { adminRouter } from "./routes/admin.routes.js";
+import { staffRouter } from "./routes/staff.routes.js";
+import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
+import { ticketDetailRouter } from "./routes/ticketDetail.routes.js";
+import { commentsRouter } from "./routes/comments.routes.js";
 import multer from "multer";
 
 
@@ -18,6 +25,70 @@ app.use(
   })
 );
 app.use(express.json());
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Session hydration (Issue 3)
+// Populates `req.user` when a valid `toktickit_session` cookie (or a Bearer
+// token) is present. It never blocks the request by itself, so Lab 1/Lab 2
+// routes without a session continue to behave exactly as before.
+// ---------------------------------------------------------------------------
+app.use(loadSession);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Authentication & session management (Issue 3)
+// ---------------------------------------------------------------------------
+app.use("/api/auth", authRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Administrator User Management (Issue 5)
+// RBAC-guarded under /api/admin (ADMINISTRATOR only).
+// ---------------------------------------------------------------------------
+app.use("/api/admin", adminRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — IT Staff Ticket Queue (Issue 6)
+// RBAC-guarded under /api/staff (IT_STAFF + ADMINISTRATOR only).
+// ---------------------------------------------------------------------------
+app.use("/api/staff", staffRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Ticket detail operations (Issue 7)
+// `/api/tickets/:id/claim|assign|it-priority|status` (IT Staff + Admin, guarded
+// by `requireRole` inside the router) and `/api/tickets/:id/resolve-indication`
+// (authenticated owning Requester). The sub-router only matches those paths,
+// so the legacy Lab 2 routes below (GET/POST /api/tickets, GET /api/tickets/:id)
+// are untouched.
+// ---------------------------------------------------------------------------
+app.use("/api/tickets", ticketDetailRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Public Comments & Internal Notes (Issue 8)
+// `GET/POST /api/tickets/:id/comments` (owner Requester + IT Staff + Admin)
+// and `GET/POST /api/tickets/:id/notes` (IT Staff + Admin only; alias
+// `/internal-notes`). RBAC guards live inside the router. The sub-router only
+// matches those nested paths, so the legacy Lab 2 routes below
+// (GET/POST /api/tickets, GET /api/tickets/:id) are untouched.
+// ---------------------------------------------------------------------------
+app.use("/api/tickets", commentsRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 3 — Requester identity bridge (Issue 3)
+// Prefer the authenticated session identity (`req.user`). When no session is
+// present we fall back to the legacy Lab 2 development header / parameter so
+// existing clients and the Lab 2 test-suite keep working unchanged.
+// ---------------------------------------------------------------------------
+function resolveRequesterId(req: Request): string | undefined {
+  if (req.user?.id) return req.user.id;
+  const fromBody =
+    req.body && typeof req.body.requesterId === "string" ? req.body.requesterId.trim() : undefined;
+  const fromHeader = req.headers["x-dev-requester-id"];
+  const fromQuery = typeof req.query.requesterId === "string" ? req.query.requesterId.trim() : undefined;
+  const resolved =
+    (fromBody && fromBody !== "" ? fromBody : undefined) ||
+    (typeof fromHeader === "string" && fromHeader !== "" ? fromHeader : undefined) ||
+    fromQuery;
+  return resolved;
+}
 
 // ---------------------------------------------------------------------------
 // Issue 2 — API health check
@@ -101,17 +172,18 @@ app.get("/api/related-systems", async (_req: Request, res: Response) => {
 
 // Multer upload error handling wrapper
 const handleTicketUpload = (req: Request, res: Response, next: NextFunction) => {
-  uploadMiddleware.array("attachments", 10)(req, res, (err: any) => {
+  uploadMiddleware.array("attachments", 10)(req, res, (err: unknown) => {
     if (err) {
       if (err instanceof multer.MulterError) {
         if (err.code === "LIMIT_FILE_SIZE") {
           return res.status(413).json({ error: "Payload Too Large: File size exceeds 5MB limit" });
         }
       }
-      if (err.message && err.message.startsWith("INVALID_MIME_TYPE")) {
+      const message = err instanceof Error ? err.message : "";
+      if (message.startsWith("INVALID_MIME_TYPE")) {
         return res.status(400).json({ error: "Bad Request: Only JPG, PNG, WEBP, and PDF files are allowed" });
       }
-      return res.status(400).json({ error: err.message || "File upload error" });
+      return res.status(400).json({ error: message || "File upload error" });
     }
     next();
   });
@@ -121,19 +193,22 @@ const handleTicketUpload = (req: Request, res: Response, next: NextFunction) => 
 // POST /api/tickets (Issue 4)
 // Create a new ticket with optional file attachments
 // ---------------------------------------------------------------------------
-app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response) => {
+app.post("/api/tickets", enforcePasswordChange, handleTicketUpload, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.body.requesterId || req.headers["x-dev-requester-id"]) as string;
+    const requesterId = resolveRequesterId(req);
     const { categoryId, relatedSystemId, requestedPriority, summary, description } = req.body;
     const files = (req.files as Express.Multer.File[]) || [];
 
     if (!requesterId) {
       return res.status(403).json({ error: "Forbidden: Requester identity context required" });
     }
-    const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
-    if (!requester || !requester.isActive) {
-      return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+    if (!req.user) {
+      // Legacy Lab 2 development-identity path (no authenticated session).
+      const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
+      if (!requester || !requester.isActive) {
+        return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+      }
     }
 
     if (!categoryId || typeof categoryId !== "string") {
@@ -179,8 +254,8 @@ app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response)
         requesterId,
         categoryId,
         relatedSystemId,
-        requestedPriority: requestedPriority as any,
-        itPriority: requestedPriority as any,
+        requestedPriority: requestedPriority as Priority,
+        itPriority: requestedPriority as Priority,
         currentStatus: "NEW",
         summary: trimmedSummary,
         description: trimmedDescription,
@@ -220,18 +295,20 @@ app.post("/api/tickets", handleTicketUpload, async (req: Request, res: Response)
 // GET /api/tickets (Issue 6)
 // List all tickets owned by the current requester (strict data isolation)
 // ---------------------------------------------------------------------------
-app.get("/api/tickets", async (req: Request, res: Response) => {
+app.get("/api/tickets", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.headers["x-dev-requester-id"] || req.query.requesterId) as string;
+    const requesterId = resolveRequesterId(req);
 
     if (!requesterId) {
       return res.status(403).json({ error: "Forbidden: Requester identity context required" });
     }
 
-    const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
-    if (!requester || !requester.isActive) {
-      return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+    if (!req.user) {
+      const requester = await prisma.requesterUser.findUnique({ where: { id: requesterId } });
+      if (!requester || !requester.isActive) {
+        return res.status(403).json({ error: "Forbidden: Requester user is inactive or does not exist" });
+      }
     }
 
     // --- Query parameters: server-side search / filter / sort / pagination ---
@@ -263,7 +340,7 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
     ] as const) ?? "createdAt";
     const sortOrder = req.query.sortOrder === "asc" ? "asc" : "desc";
 
-    const where: any = { requesterId };
+    const where: Prisma.TicketWhereInput = { requesterId };
     if (categoryId) where.categoryId = categoryId;
     if (requestedPriority) where.requestedPriority = requestedPriority;
     if (currentStatus) where.currentStatus = currentStatus;
@@ -287,7 +364,7 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
             select: { id: true },
           },
         },
-        orderBy: { [sortBy]: sortOrder } as any,
+        orderBy: { [sortBy]: sortOrder } as Prisma.TicketOrderByWithRelationInput,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -319,10 +396,10 @@ app.get("/api/tickets", async (req: Request, res: Response) => {
 // GET /api/tickets/:id (Issue 6)
 // Retrieve detail of owned ticket with strict 403 ownership enforcement
 // ---------------------------------------------------------------------------
-app.get("/api/tickets/:id", async (req: Request, res: Response) => {
+app.get("/api/tickets/:id", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.headers["x-dev-requester-id"] || req.query.requesterId) as string;
+    const requesterId = resolveRequesterId(req);
     const { id } = req.params;
 
     if (!requesterId) {
@@ -366,10 +443,10 @@ app.get("/api/tickets/:id", async (req: Request, res: Response) => {
 // POST /api/tickets/:id/attachments (Issue 6)
 // Upload additional file attachment to an existing owned ticket
 // ---------------------------------------------------------------------------
-app.post("/api/tickets/:id/attachments", handleTicketUpload, async (req: Request, res: Response) => {
+app.post("/api/tickets/:id/attachments", enforcePasswordChange, handleTicketUpload, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.body.requesterId || req.headers["x-dev-requester-id"]) as string;
+    const requesterId = resolveRequesterId(req);
     const { id } = req.params;
     const files = (req.files as Express.Multer.File[]) || [];
 
@@ -428,10 +505,10 @@ app.post("/api/tickets/:id/attachments", handleTicketUpload, async (req: Request
 // GET /api/attachments/:id/download (Issue 6)
 // Download active file stream with ownership and soft removal enforcement
 // ---------------------------------------------------------------------------
-app.get("/api/attachments/:id/download", async (req: Request, res: Response) => {
+app.get("/api/attachments/:id/download", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.headers["x-dev-requester-id"] || req.query.requesterId) as string;
+    const requesterId = resolveRequesterId(req);
     const { id } = req.params;
 
     if (!requesterId) {
@@ -472,10 +549,10 @@ app.get("/api/attachments/:id/download", async (req: Request, res: Response) => 
 // DELETE /api/attachments/:id (Issue 6)
 // Soft-remove an attachment requiring mandatory removalReason
 // ---------------------------------------------------------------------------
-app.delete("/api/attachments/:id", async (req: Request, res: Response) => {
+app.delete("/api/attachments/:id", enforcePasswordChange, async (req: Request, res: Response) => {
   try {
     const prisma = getPrisma();
-    const requesterId = (req.body.requesterId || req.headers["x-dev-requester-id"]) as string;
+    const requesterId = resolveRequesterId(req);
     const { removalReason } = req.body;
     const { id } = req.params;
 

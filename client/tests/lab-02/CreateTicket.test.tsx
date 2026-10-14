@@ -1,54 +1,58 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { CreateTicketForm } from "../../src/components/CreateTicketForm";
 import * as api from "../../src/api";
-import { RequesterProvider } from "../../src/context/RequesterContext";
+import { AuthProvider } from "../../src/context/AuthContext";
 
 const mockCategories: api.Category[] = [
-  { id: 1, name: "Hardware", description: "Hardware issues" },
-  { id: 2, name: "Software", description: "Software issues" },
+  { id: "1", name: "Hardware", description: "Hardware issues" },
+  { id: "2", name: "Software", description: "Software issues" },
 ];
 
 const mockSystems: api.RelatedSystem[] = [
-  { id: 1, name: "Corporate Laptop", description: "Laptop device" },
+  { id: "1", name: "Corporate Laptop", code: "LAP01", description: "Laptop device" },
 ];
 
-const mockRequester: api.DevRequester = {
+const mockUser: api.AuthUser = {
   id: "req-1",
   name: "Jennifer Anderson",
   email: "jennifer.anderson@kmutt.ac.th",
+  role: "REQUESTER",
   department: "Computer Engineering",
-
+  isActive: true,
+  requiresPasswordChange: false,
 };
+
+function renderForm() {
+  return render(
+    <AuthProvider>
+      <CreateTicketForm onCancel={vi.fn()} onSuccessRedirect={vi.fn()} />
+    </AuthProvider>
+  );
+}
 
 describe("CreateTicketForm Component", () => {
   beforeEach(() => {
-    localStorage.setItem("toktickit_requester_id", "req-1");
     vi.restoreAllMocks();
+    vi.spyOn(api, "getCurrentUser").mockResolvedValue(mockUser);
     vi.spyOn(api, "getCategories").mockResolvedValue(mockCategories);
     vi.spyOn(api, "getRelatedSystems").mockResolvedValue(mockSystems);
-    vi.spyOn(api, "getDevRequesters").mockResolvedValue([mockRequester]);
   });
 
   it("renders read-only requester info, initial status NEW, and form fields", async () => {
-    render(
-      <RequesterProvider>
-        <CreateTicketForm onCancel={vi.fn()} onSuccessRedirect={vi.fn()} />
-      </RequesterProvider>
-    );
+    renderForm();
 
     expect(await screen.findByDisplayValue("NEW")).toBeInTheDocument();
     expect(screen.getByDisplayValue("(Auto-generated upon submission)")).toBeInTheDocument();
     expect(screen.getByLabelText(/Ticket Summary/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Problem Description/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue(/Jennifer Anderson/i)).toBeInTheDocument();
   });
 
   it("displays validation errors when submitting invalid short summary", async () => {
-    render(
-      <RequesterProvider>
-        <CreateTicketForm onCancel={vi.fn()} onSuccessRedirect={vi.fn()} />
-      </RequesterProvider>
-    );
+    const user = userEvent.setup();
+    renderForm();
 
     await screen.findByDisplayValue("NEW");
 
@@ -56,37 +60,35 @@ describe("CreateTicketForm Component", () => {
     const descriptionInput = screen.getByLabelText(/Problem Description/i);
     const submitBtn = screen.getByRole("button", { name: /Submit Support Ticket/i });
 
-    fireEvent.change(summaryInput, { target: { value: "Bad" } });
-    fireEvent.change(descriptionInput, { target: { value: "Detailed problem description text." } });
-
-    fireEvent.click(submitBtn);
+    await user.type(summaryInput, "Bad");
+    await user.type(descriptionInput, "Detailed problem description text.");
+    await user.click(submitBtn);
 
     expect(await screen.findByText(/Summary must be at least 5 characters/i)).toBeInTheDocument();
   });
 
   it("submits valid ticket and renders success confirmation with ticket number", async () => {
+    const user = userEvent.setup();
+
     const mockCreatedTicket: api.Ticket = {
       id: "tkt-123",
       ticketNumber: "TKT-2026-000001",
       requesterId: "req-1",
       categoryId: "1",
+      relatedSystemId: "1",
       requestedPriority: "HIGH",
       currentStatus: "NEW",
       summary: "Laptop battery drains quickly",
       description: "My laptop battery is draining very fast after last update.",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      category: { id: 1, name: "Hardware" },
+      category: { id: "1", name: "Hardware" },
       attachments: [],
     };
 
     vi.spyOn(api, "createTicket").mockResolvedValueOnce(mockCreatedTicket);
 
-    render(
-      <RequesterProvider>
-        <CreateTicketForm onCancel={vi.fn()} onSuccessRedirect={vi.fn()} />
-      </RequesterProvider>
-    );
+    renderForm();
 
     await screen.findByDisplayValue("NEW");
 
@@ -95,16 +97,30 @@ describe("CreateTicketForm Component", () => {
     const categorySelect = screen.getByLabelText(/Category/i);
     const submitBtn = screen.getByRole("button", { name: /Submit Support Ticket/i });
 
-    // สลับค่าเพื่อกระตุ้นให้เกิด event onChange ใน JSDOM
-    fireEvent.change(categorySelect, { target: { value: "2" } });
-    fireEvent.change(categorySelect, { target: { value: "1" } });
+    await user.selectOptions(categorySelect, "1");
+    await user.type(summaryInput, "Laptop battery drains quickly");
+    await user.type(descriptionInput, "My laptop battery is draining very fast after last update.");
 
-    fireEvent.change(summaryInput, { target: { value: "Laptop battery drains quickly" } });
-    fireEvent.change(descriptionInput, { target: { value: "My laptop battery is draining very fast after last update." } });
-
-    fireEvent.click(submitBtn);
+    await user.click(submitBtn);
 
     expect(await screen.findByText(/Ticket Submitted Successfully/i)).toBeInTheDocument();
     expect(screen.getByText("TKT-2026-000001")).toBeInTheDocument();
+  });
+
+  it("displays an error message when ticket submission fails", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "createTicket").mockRejectedValueOnce(new Error("Failed to create ticket"));
+
+    renderForm();
+
+    await screen.findByDisplayValue("NEW");
+
+    await user.selectOptions(screen.getByLabelText(/Category/i), "1");
+    await user.type(screen.getByLabelText(/Ticket Summary/i), "Valid summary");
+    await user.type(screen.getByLabelText(/Problem Description/i), "Valid description");
+
+    await user.click(screen.getByRole("button", { name: /Submit Support Ticket/i }));
+
+    expect(await screen.findByText(/Failed to create ticket/i)).toBeInTheDocument();
   });
 });

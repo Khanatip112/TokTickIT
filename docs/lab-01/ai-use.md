@@ -14,4 +14,4 @@
 
 
 ## Reflection
-Working with Antigravity and Gemini was a great hands-on experience. I learned that without clear prompt boundaries, the AI can go overboard—building future features early, wasting tokens, and messing up my Kanban flow.To manage this, I used Gemini Chatbot for workflow advice and quick fixes (like Git casing and PR target errors), saving Antigravity purely for step-by-step coding. Prompting one issue at a time worked much better.I also had to spend extra time on AI and YouTube to grasp some tough technical concepts, which made me realize how much I still need to learn.
+I developed a much more thorough planning strategy for both myself and the AI agent. On my end, I set up a clear, structured workflow to manage the entire project systematically. For the AI agent, I broke complex tasks into detailed, single-issue prompts, which prevented it from running out of tokens mid-task. Overall, this disciplined approach gave me a deeper understanding of the project and made it much easier to track my progress step by step.

@@ -169,3 +169,86 @@ input:disabled {
     padding-right: 0.75rem !important;
   }
 }
+
+/* ==========================================================================
+   Lab 3 — Authentication pages & profile menu (Issue 4)
+   ========================================================================== */
+
+.auth-page {
+  background:
+    radial-gradient(1200px 400px at 50% -10%, #EAF6EF 0%, transparent 60%),
+    var(--zen-background);
+}
+
+.auth-card {
+  border-radius: var(--zen-radius);
+  box-shadow: 0 4px 20px rgba(0, 107, 60, 0.08);
+}
+
+.profile-menu {
+  border-radius: var(--zen-radius-sm);
+  overflow: hidden;
+  animation: fadeIn 0.15s ease both;
+}
+
+.profile-menu .btn-link:hover {
+  background-color: var(--zen-pale);
+}
+
+/* ==========================================================================
+   Lab 3 — IT Staff Ticket Queue (Issue 6)
+   ========================================================================== */
+
+.zen-skeleton {
+  display: inline-block;
+  width: 100%;
+  background: linear-gradient(90deg, #eef2f0 25%, #e2ebe6 37%, #eef2f0 63%);
+  background-size: 400% 100%;
+  animation: zen-shimmer 1.4s ease infinite;
+  border-radius: 0.375rem;
+}
+
+.zen-skeleton-line {
+  height: 1rem;
+}
+
+@keyframes zen-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.queue-summary {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-ticket-link {
+  color: var(--zen-primary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.queue-ticket-link:hover {
+  color: var(--zen-hover);
+  text-decoration: underline !important;
+}
+
+.queue-card {
+  transition: box-shadow 0.15s ease, transform 0.1s ease;
+  cursor: pointer;
+}
+
+.queue-card:hover {
+  box-shadow: var(--zen-shadow-hover);
+}
+

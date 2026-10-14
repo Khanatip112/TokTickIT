@@ -1,46 +1,44 @@
 import React, { useState, useEffect, ChangeEvent } from "react";
-import { useRequesterContext } from "../context/RequesterContext";
+import { useAuth } from "../context/AuthContext";
 import {
+  ApiError,
   Ticket,
   Attachment,
+  TicketComment,
   getTicketDetail,
   uploadAttachmentToTicket,
   softRemoveAttachment,
   getAttachmentDownloadUrl,
+  indicateProblemResolved,
+  getTicketComments,
+  postTicketComment,
 } from "../api";
+import { PriorityBadge } from "./PriorityBadge";
+import { TicketStatusBadge } from "./TicketStatusBadge";
+import { TicketCommentItem } from "./TicketCommentItem";
+
+const MAX_COMMENT_LENGTH = 2000;
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+
+/** Active statuses that may show the "Problem Appears Resolved" action (ui-spec §4.7). */
+const INDICATION_ACTIVE_STATUSES: Ticket["currentStatus"][] = [
+  "OPEN",
+  "IN_PROGRESS",
+  "WAITING_FOR_REQUESTER",
+];
 
 interface TicketDetailViewProps {
   ticketId: string;
   onBackToTickets?: () => void;
 }
 
-const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  NEW: { bg: "#EAF6EF", color: "#006B3C", label: "New" },
-  OPEN: { bg: "#e0f0ff", color: "#0066cc", label: "Open" },
-  IN_PROGRESS: { bg: "#fff3cd", color: "#856404", label: "In Progress" },
-  PENDING: { bg: "#f8d7da", color: "#842029", label: "Pending" },
-  RESOLVED: { bg: "#d1e7dd", color: "#0a3622", label: "Resolved" },
-  CLOSED: { bg: "#e2e3e5", color: "#41464b", label: "Closed" },
-};
-
-// Helper สำหรับดึง Style สีตาม Status
-const getStatusBadgeStyle = (status: string) => {
-  const badge = STATUS_BADGE[status] || { bg: "#e2e3e5", color: "#41464b" };
-  return {
-    backgroundColor: badge.bg,
-    color: badge.color,
-    borderColor: badge.color,
-  };
-};
-
 export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   ticketId,
   onBackToTickets,
 }) => {
-  const { currentRequester } = useRequesterContext();
+  const { user } = useAuth();
 
   const [ticket, setTicket] = useState<Ticket | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -57,21 +55,34 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // "Problem Appears Resolved" indication state (BR-16 / FR-12, ui-spec §4.7)
+  const [showResolveModal, setShowResolveModal] = useState<boolean>(false);
+  const [isIndicating, setIsIndicating] = useState<boolean>(false);
+  const [indicationError, setIndicationError] = useState<string | null>(null);
+  const [indicationDone, setIndicationDone] = useState<boolean>(false);
+
+  // Public Comments (Issue 8 / FR-20). Internal Notes are never fetched or
+  // rendered here — the Requester view must not expose the confidential stream.
+  const [comments, setComments] = useState<TicketComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentsError, setCommentsError] = useState<string | null>(null);
+  const [isPostingComment, setIsPostingComment] = useState(false);
+
   const fetchDetail = async () => {
-    if (!currentRequester) return;
+    if (!user) return;
     setIsLoading(true);
     setError(null);
     setIs403(false);
     try {
-      const data = await getTicketDetail(ticketId, currentRequester.id);
+      const data = await getTicketDetail(ticketId, user.id);
       setTicket(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error fetching ticket detail:", err);
-      if (err.status === 403) {
+      if (err instanceof ApiError && err.status === 403) {
         setIs403(true);
         setError("Access Denied: You do not have permission to view or manage this support ticket.");
       } else {
-        setError(err.message || "Failed to load ticket details");
+        setError(err instanceof Error ? err.message : "Failed to load ticket details");
       }
     } finally {
       setIsLoading(false);
@@ -80,10 +91,43 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
 
   useEffect(() => {
     fetchDetail();
-  }, [ticketId, currentRequester?.id]);
+  }, [ticketId, user?.id]);
+
+  /** Loads the Public Comments stream (owner access enforced server-side). */
+  const loadComments = async () => {
+    if (!user) return;
+    try {
+      const list = await getTicketComments(ticketId);
+      setComments(list);
+      setCommentsError(null);
+    } catch (err) {
+      setCommentsError(err instanceof Error ? err.message : "Failed to load public comments.");
+    }
+  };
+
+  useEffect(() => {
+    loadComments();
+  }, [ticketId, user?.id]);
+
+  /** Appends a public comment (BR-18 append-only — no edits afterwards). */
+  const handlePostComment = async () => {
+    const content = commentDraft.trim();
+    if (!content || isPostingComment) return;
+    setIsPostingComment(true);
+    setCommentsError(null);
+    try {
+      const created = await postTicketComment(ticketId, content);
+      setComments((prev) => [...prev, created]);
+      setCommentDraft("");
+    } catch (err) {
+      setCommentsError(err instanceof Error ? err.message : "Failed to post the comment.");
+    } finally {
+      setIsPostingComment(false);
+    }
+  };
 
   const handleConfirmRemoval = async () => {
-    if (!selectedAttachment || !currentRequester) return;
+    if (!selectedAttachment || !user) return;
     const trimmedReason = removalReason.trim();
     if (trimmedReason.length < 3) {
       setRemovalError("Removal reason must be at least 3 characters long.");
@@ -93,20 +137,20 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     setIsRemoving(true);
     setRemovalError(null);
     try {
-      await softRemoveAttachment(selectedAttachment.id, trimmedReason, currentRequester.id);
+      await softRemoveAttachment(selectedAttachment.id, trimmedReason, user.id);
       setSelectedAttachment(null);
       setRemovalReason("");
       await fetchDetail();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Soft removal error:", err);
-      setRemovalError(err.message || "Failed to soft-remove attachment");
+      setRemovalError(err instanceof Error ? err.message : "Failed to soft-remove attachment");
     } finally {
       setIsRemoving(false);
     }
   };
 
   const handleUploadFiles = async (filesToAdd: FileList | File[]) => {
-    if (!currentRequester || !ticket) return;
+    if (!user || !ticket) return;
     setUploadError(null);
 
     const files = Array.from(filesToAdd);
@@ -130,16 +174,35 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append("requesterId", currentRequester.id);
+      formData.append("requesterId", user.id);
       files.forEach((f) => formData.append("attachments", f));
 
-      await uploadAttachmentToTicket(ticket.id, formData, currentRequester.id);
+      await uploadAttachmentToTicket(ticket.id, formData, user.id);
       await fetchDetail();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Upload error:", err);
-      setUploadError(err.message || "Failed to upload file attachment");
+      setUploadError(err instanceof Error ? err.message : "Failed to upload file attachment");
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  /** Confirms the Requester's resolution indication (status stays unchanged). */
+  const handleConfirmIndication = async () => {
+    if (!ticket) return;
+    setIsIndicating(true);
+    setIndicationError(null);
+    try {
+      await indicateProblemResolved(ticket.id);
+      setIndicationDone(true);
+      setShowResolveModal(false);
+    } catch (err) {
+      console.error("Resolution indication error:", err);
+      setIndicationError(
+        err instanceof Error ? err.message : "The resolution indication could not be recorded."
+      );
+    } finally {
+      setIsIndicating(false);
     }
   };
 
@@ -214,16 +277,15 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
             Submitted on {new Date(ticket.createdAt).toLocaleString()}
           </small>
         </div>
-        <div className="d-flex align-items-center gap-2">
-          <span className="badge bg-warning text-dark px-3 py-2 fs-6">
-            Priority: {ticket.requestedPriority}
+        <div className="d-flex align-items-center gap-3 flex-wrap">
+          {/* Read-only badges: requested priority + status (Zen Green tokens) */}
+          <span className="d-inline-flex align-items-center gap-2">
+            <span className="small text-muted">Requested Priority</span>
+            <PriorityBadge priority={ticket.requestedPriority} />
           </span>
-          {/* 2. Status Badge พร้อมสีสว่างชัดเจน */}
-          <span
-            className="badge px-3 py-2 fs-6 fw-bold border"
-            style={getStatusBadgeStyle(ticket.currentStatus)}
-          >
-            Status: {ticket.currentStatus}
+          <span className="d-inline-flex align-items-center gap-2">
+            <span className="small text-muted">Status</span>
+            <TicketStatusBadge status={ticket.currentStatus} />
           </span>
         </div>
       </div>
@@ -287,6 +349,111 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
         </div>
       </div>
 
+      {/* Public Comments (Issue 8 / FR-20) — Requesters read and post public          comments only; the Internal Notes stream is never rendered here. */}
+      <div className="mb-4" data-testid="requester-public-comments">
+        <label className="form-label fw-bold text-dark d-flex align-items-center gap-2">
+          <span>💬 Public Comments</span>
+          <span className="badge bg-secondary fs-6 fw-normal">{comments.length}</span>
+        </label>
+        {commentsError && (
+          <div className="alert alert-danger py-2 small mb-2" role="alert">
+            {commentsError}
+          </div>
+        )}
+        <label htmlFor="requester-comment-input" className="form-label small text-muted mb-1">
+          Add Public Comment
+        </label>
+        <textarea
+          id="requester-comment-input"
+          data-testid="requester-comment-input"
+          className="form-control mb-2"
+          rows={3}
+          placeholder="Type your comment here..."
+          maxLength={MAX_COMMENT_LENGTH}
+          value={commentDraft}
+          onChange={(e) => setCommentDraft(e.target.value)}
+          disabled={isPostingComment}
+        />
+        <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <small className="text-muted">
+            Append-only — comments cannot be edited or deleted once posted.
+          </small>
+          <button
+            type="button"
+            className="btn btn-zen-primary btn-sm"
+            data-testid="post-comment"
+            onClick={handlePostComment}
+            disabled={isPostingComment || commentDraft.trim().length === 0}
+          >
+            {isPostingComment ? "Posting…" : "Post Comment"}
+          </button>
+        </div>
+        {comments.length === 0 ? (
+          <p
+            className="text-muted small mb-0 border p-3 rounded bg-light"
+            data-testid="public-comments-empty"
+          >
+            No public comments yet.
+          </p>
+        ) : (
+          <div className="d-flex flex-column gap-2" data-testid="public-comments-list">
+            {[...comments]
+              .reverse()
+              .map((comment) => (
+                <TicketCommentItem key={comment.id} comment={comment} />
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* BR-16 / FR-12 — "Problem Appears Resolved" indication (status is NOT changed) */}
+      {INDICATION_ACTIVE_STATUSES.includes(ticket.currentStatus) &&
+        (indicationDone ? (
+          <div
+            className="alert mb-4 d-flex align-items-start gap-2"
+            role="status"
+            data-testid="resolution-indication-done"
+            style={{ backgroundColor: "#EAF6EF", border: "1px solid rgba(0, 107, 60, 0.15)", color: "#006B3C" }}
+          >
+            <span aria-hidden="true">✅</span>
+            <div>
+              <strong>Resolution indication recorded.</strong> IT Staff has been notified to verify
+              and formally resolve your ticket. The status has not changed yet.
+            </div>
+          </div>
+        ) : (
+          <div
+            className="card mb-4"
+            data-testid="resolve-indication-card"
+            style={{
+              backgroundColor: "#EAF6EF",
+              border: "1px solid rgba(0, 107, 60, 0.15)",
+              borderRadius: "0.75rem",
+            }}
+          >
+            <div className="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+              <div>
+                <h6 className="fw-bold mb-1" style={{ color: "#006B3C" }}>
+                  <span aria-hidden="true">ℹ️</span> Has your issue been resolved?
+                </h6>
+                <p className="text-secondary small mb-0">
+                  If your issue has been fixed, click below to notify IT Staff.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-zen-primary px-4"
+                onClick={() => {
+                  setIndicationError(null);
+                  setShowResolveModal(true);
+                }}
+              >
+                Problem Appears Resolved
+              </button>
+            </div>
+          </div>
+        ))}
+
       <div className="border-top pt-4 mt-4">
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h5 className="fw-bold mb-0 text-zen-primary d-flex align-items-center gap-2">
@@ -339,7 +506,7 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <a
-                      href={getAttachmentDownloadUrl(att.id, currentRequester?.id || "")}
+                      href={getAttachmentDownloadUrl(att.id, user?.id || "")}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
@@ -396,6 +563,68 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* "Problem Appears Resolved" confirmation modal (ui-spec §4.7) */}
+      {showResolveModal && (
+        <div
+          className="modal show d-block"
+          tabIndex={-1}
+          style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resolve-indication-modal-title"
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content shadow-lg border-0" style={{ borderRadius: "0.75rem" }}>
+              <div className="modal-header text-white" style={{ backgroundColor: "#006B3C" }}>
+                <h5 className="modal-title fw-bold" id="resolve-indication-modal-title">
+                  Problem Appears Resolved
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close btn-close-white"
+                  aria-label="Close"
+                  onClick={() => setShowResolveModal(false)}
+                  disabled={isIndicating}
+                ></button>
+              </div>
+              <div className="modal-body p-4">
+                <p className="text-dark mb-3">
+                  Confirm that your issue has been resolved. This will notify IT Staff to formally
+                  close your ticket.
+                </p>
+                <div className="alert alert-secondary small mb-0">
+                  Your ticket status will not change until IT Staff verifies the fix.
+                </div>
+                {indicationError && (
+                  <div className="alert alert-danger py-2 small mt-3 mb-0" role="alert">
+                    {indicationError}
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer border-top-0 px-4 pb-3">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowResolveModal(false)}
+                  disabled={isIndicating}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-zen-primary"
+                  data-testid="confirm-resolve-indication"
+                  onClick={handleConfirmIndication}
+                  disabled={isIndicating}
+                >
+                  {isIndicating ? "Submitting…" : "Confirm — Problem Resolved"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedAttachment && (
         <div
