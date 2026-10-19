@@ -11,6 +11,7 @@ import { staffRouter } from "./routes/staff.routes.js";
 import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
 import { ticketDetailRouter } from "./routes/ticketDetail.routes.js";
 import { commentsRouter } from "./routes/comments.routes.js";
+import { actionsTakenRouter, ticketActionsRouter } from "./routes/actionsTaken.routes.js";
 import multer from "multer";
 
 
@@ -70,6 +71,13 @@ app.use("/api/tickets", ticketDetailRouter);
 // (GET/POST /api/tickets, GET /api/tickets/:id) are untouched.
 // ---------------------------------------------------------------------------
 app.use("/api/tickets", commentsRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Actions Taken (Issue 3)
+// `GET/POST /api/tickets/:id/actions-taken` and `PUT /api/actions-taken/:actionId`
+// ---------------------------------------------------------------------------
+app.use("/api/tickets", ticketActionsRouter);
+app.use("/api/actions-taken", actionsTakenRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 — Requester identity bridge (Issue 3)
