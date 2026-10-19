@@ -204,8 +204,10 @@ async function main() {
   const emily = seededUsers.get("emily.davis@toktickit.com");
   const michael = seededUsers.get("michael.brown@toktickit.com");
   const lisa = seededUsers.get("lisa.martinez@toktickit.com");
+  const james = seededUsers.get("james.wilson@toktickit.com");
+  const admin = seededUsers.get("admin@toktickit.com");
 
-  // 4. Seed Detailed Sample Tickets with Comments and Internal Notes
+  // 4. Seed Detailed Sample Tickets with Comments, Internal Notes, and Actions Taken
   const sampleTickets = [
     {
       ticketNumber: "TKT-2025-001234",
@@ -243,6 +245,28 @@ async function main() {
           content: "Ordered replacement battery part #BAT-9921. Delivery expected tomorrow morning.",
         },
       ],
+      actionsTaken: [
+        {
+          id: "a0000000-0000-4000-8000-000000000001",
+          actionDateTime: new Date("2026-10-15T09:30:00.000Z"),
+          description: "Ran hardware diagnostic suite to evaluate battery wear and health state.",
+          result: "PARTIAL",
+          performedById: michael.id,
+          followUpRequired: true,
+          followUpNote: "Battery health at 45%; order replacement part from vendor.",
+          attachmentNotes: "battery-report-01.html",
+        },
+        {
+          id: "a0000000-0000-4000-8000-000000000002",
+          actionDateTime: new Date("2026-10-16T14:15:00.000Z"),
+          description: "Replaced physical battery pack with part #BAT-9921 and performed initial charging test.",
+          result: "SUCCESS",
+          performedById: lisa.id, // Demonstrates BR-02: Action taken by IT staff other than ticket owner
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: "warranty-check.png",
+        },
+      ],
     },
     {
       ticketNumber: "TKT-2026-000002",
@@ -270,6 +294,18 @@ async function main() {
           content: "Checked RADIUS authentication logs. No rejection observed, suspect DNS routing issue on client ISP.",
         },
       ],
+      actionsTaken: [
+        {
+          id: "a0000000-0000-4000-8000-000000000003",
+          actionDateTime: new Date("2026-10-16T11:00:00.000Z"),
+          description: "Inspected RADIUS authentication logs and verified user profile credentials.",
+          result: "PENDING",
+          performedById: lisa.id,
+          followUpRequired: true,
+          followUpNote: "Request client ISP routing trace from user.",
+          attachmentNotes: "radius-auth-log.txt",
+        },
+      ],
     },
     {
       ticketNumber: "TKT-2026-000003",
@@ -285,6 +321,7 @@ async function main() {
       resolutionSummary: null,
       comments: [],
       internalNotes: [],
+      actionsTaken: [], // 0 Actions Taken on IN_PROGRESS ticket
     },
     {
       ticketNumber: "TKT-2026-000004",
@@ -300,6 +337,7 @@ async function main() {
       resolutionSummary: null,
       comments: [],
       internalNotes: [],
+      actionsTaken: [], // 0 Actions Taken on NEW ticket
     },
     {
       ticketNumber: "TKT-2026-000005",
@@ -321,6 +359,18 @@ async function main() {
         },
       ],
       internalNotes: [],
+      actionsTaken: [
+        {
+          id: "a0000000-0000-4000-8000-000000000004",
+          actionDateTime: new Date("2026-10-17T08:45:00.000Z"),
+          description: "Attempted remote ping to network printer IP; device unreachable on subnet.",
+          result: "FAILED",
+          performedById: michael.id,
+          followUpRequired: true,
+          followUpNote: "Awaiting physical confirmation of ethernet cable connection from office staff.",
+          attachmentNotes: "ping-timeout.png",
+        },
+      ],
     },
     {
       ticketNumber: "TKT-2026-000006",
@@ -353,6 +403,28 @@ async function main() {
           content: "Known Dell firmware bug resolved in release 4.12.",
         },
       ],
+      actionsTaken: [
+        {
+          id: "a0000000-0000-4000-8000-000000000005",
+          actionDateTime: new Date("2026-10-17T13:00:00.000Z"),
+          description: "Updated Thunderbolt dock firmware to version 4.12.",
+          result: "PARTIAL",
+          performedById: lisa.id,
+          followUpRequired: true,
+          followUpNote: "Need to update host GPU driver to match dock firmware.",
+          attachmentNotes: null,
+        },
+        {
+          id: "a0000000-0000-4000-8000-000000000006",
+          actionDateTime: new Date("2026-10-17T15:30:00.000Z"),
+          description: "Installed latest Intel Graphics driver and verified dual 4K external display configuration.",
+          result: "SUCCESS",
+          performedById: james.id,
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: "dual-display-verification.png",
+        },
+      ],
     },
     {
       ticketNumber: "TKT-2026-000007",
@@ -368,11 +440,121 @@ async function main() {
       resolutionSummary: "Installed MATLAB 2026 with campus network license and verified toolboxes.",
       comments: [],
       internalNotes: [],
+      actionsTaken: [
+        {
+          id: "a0000000-0000-4000-8000-000000000007",
+          actionDateTime: new Date("2026-10-14T10:00:00.000Z"),
+          description: "Deployed MATLAB 2026 with university concurrent campus network license.",
+          result: "SUCCESS",
+          performedById: lisa.id,
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: "matlab-license-activation.pdf",
+        },
+      ],
+    },
+    {
+      ticketNumber: "TKT-2026-000008",
+      requesterId: jennifer.id,
+      assignedToId: michael.id,
+      categoryId: catMap.get("Network") || allCats[0].id,
+      relatedSystemId: sysMap.get("SYS-WIFI") || allSys[0].id,
+      requestedPriority: "URGENT" as const,
+      itPriority: "URGENT" as const,
+      currentStatus: "REOPENED" as const,
+      summary: "Campus Wi-Fi drops intermittently in Building 3",
+      description: "Wi-Fi connections disconnect every 10 minutes during classes in Building 3 lecture halls.",
+      resolutionSummary: null,
+      comments: [
+        {
+          id: "cmt-seed-7",
+          authorId: jennifer.id,
+          content: "The disconnections started again this morning during the lecture.",
+        },
+      ],
+      internalNotes: [
+        {
+          id: "note-seed-5",
+          authorId: michael.id,
+          content: "Reopened ticket due to recurring interference on access point cluster.",
+        },
+      ],
+      actionsTaken: [
+        {
+          id: "a0000000-0000-4000-8000-000000000008",
+          actionDateTime: new Date("2026-10-18T09:00:00.000Z"),
+          description: "Rebooted access point AP-B3-201 and refreshed DHCP lease table.",
+          result: "PARTIAL",
+          performedById: michael.id,
+          followUpRequired: true,
+          followUpNote: "Issue recurred after 2 hours; scheduled RF interference scan.",
+          attachmentNotes: "rf-channel-map.png",
+        },
+        {
+          id: "a0000000-0000-4000-8000-000000000009",
+          actionDateTime: new Date("2026-10-18T14:30:00.000Z"),
+          description: "Adjusted transmission power on adjacent 5GHz channels to minimize co-channel interference.",
+          result: "PENDING",
+          performedById: lisa.id,
+          followUpRequired: true,
+          followUpNote: "Monitor signal-to-noise ratio during peak class hours.",
+          attachmentNotes: null,
+        },
+      ],
+    },
+    {
+      ticketNumber: "TKT-2026-000009",
+      requesterId: david.id,
+      assignedToId: null, // Unassigned
+      categoryId: catMap.get("Software") || allCats[0].id,
+      relatedSystemId: sysMap.get("SYS-LEB2") || allSys[0].id,
+      requestedPriority: "MEDIUM" as const,
+      itPriority: "MEDIUM" as const,
+      currentStatus: "CANCELLED" as const,
+      summary: "Duplicate grade submission inquiry",
+      description: "Request was filed twice by accident. Please cancel this ticket.",
+      resolutionSummary: "Cancelled at requester request as duplicate.",
+      comments: [],
+      internalNotes: [],
+      actionsTaken: [], // 0 Actions Taken on CANCELLED ticket
+    },
+    {
+      ticketNumber: "TKT-2026-000010",
+      requesterId: sarah.id,
+      assignedToId: null, // Unassigned, URGENT priority
+      categoryId: catMap.get("Network") || allCats[0].id,
+      relatedSystemId: sysMap.get("SYS-VPN") || allSys[0].id,
+      requestedPriority: "URGENT" as const,
+      itPriority: "URGENT" as const,
+      currentStatus: "OPEN" as const,
+      summary: "Core VPN gateway cluster node failing health probe",
+      description: "Gateway 2 cluster node failing health check probe; remote connections experiencing packet loss.",
+      resolutionSummary: null,
+      comments: [],
+      internalNotes: [
+        {
+          id: "note-seed-6",
+          authorId: admin.id,
+          content: "Failover initiated automatically. Monitoring failover node stability.",
+        },
+      ],
+      actionsTaken: [
+        {
+          id: "a0000000-0000-4000-8000-000000000010",
+          actionDateTime: new Date("2026-10-19T08:00:00.000Z"),
+          description: "Initiated gateway failover to standby node; verifying route propagation.",
+          result: "SUCCESS",
+          performedById: admin.id,
+          followUpRequired: false,
+          followUpNote: null,
+          attachmentNotes: "gateway-failover.log",
+        },
+      ],
     },
   ];
 
   for (const t of sampleTickets) {
-    const { comments, internalNotes, ...ticketData } = t;
+    const { comments, internalNotes, actionsTaken, ...ticketData } = t;
 
     const ticket = await prisma.ticket.upsert({
       where: { ticketNumber: ticketData.ticketNumber },
@@ -417,6 +599,36 @@ async function main() {
           content: n.content,
         },
       });
+    }
+
+    // Idempotent Actions Taken
+    if (actionsTaken && actionsTaken.length > 0) {
+      for (const a of actionsTaken) {
+        await prisma.actionTaken.upsert({
+          where: { id: a.id },
+          update: {
+            ticketId: ticket.id,
+            actionDateTime: a.actionDateTime,
+            description: a.description,
+            result: a.result,
+            performedById: a.performedById,
+            followUpRequired: a.followUpRequired,
+            followUpNote: a.followUpNote ?? null,
+            attachmentNotes: a.attachmentNotes ?? null,
+          },
+          create: {
+            id: a.id,
+            ticketId: ticket.id,
+            actionDateTime: a.actionDateTime,
+            description: a.description,
+            result: a.result,
+            performedById: a.performedById,
+            followUpRequired: a.followUpRequired,
+            followUpNote: a.followUpNote ?? null,
+            attachmentNotes: a.attachmentNotes ?? null,
+          },
+        });
+      }
     }
   }
 
