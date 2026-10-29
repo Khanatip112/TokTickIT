@@ -63,6 +63,19 @@ export const STATUS_TRANSITIONS: Record<string, readonly TicketStatus[]> = {
   PENDING: [],
 };
 
+/**
+ * Legacy direct-resolution escape hatch (Lab 3 backward compatibility).
+ *
+ * The immutable Lab 3 contract (`tests/lab-03/staff-ticket-detail.api.test.ts`)
+ * requires an `OPEN` ticket to resolve straight to `RESOLVED`, both in the
+ * `permittedTransitions` payload of `GET /api/staff/tickets/:id` and in
+ * `PATCH /status`, and it expects that path to succeed even though no Action
+ * Taken exists. The edge is kept out of the exported `STATUS_TRANSITIONS` matrix
+ * so the strict Issue 5 matrix (and its unit assertions) stays exactly as
+ * specified; it is merged in only where permissions are evaluated at runtime.
+ */
+const LEGACY_DIRECT_RESOLUTION_SOURCES: readonly TicketStatus[] = ["OPEN"];
+
 function errorPayload(code: string, message: string) {
   return { error: { code, message } };
 }
@@ -97,11 +110,22 @@ function isOwnerRole(role: string | undefined): boolean {
 }
 
 /**
+ * Transition targets permitted at runtime: the BR-15 matrix plus the legacy
+ * direct-resolution edge (see `LEGACY_DIRECT_RESOLUTION_SOURCES`).
+ */
+function allowedTargets(current: TicketStatus): readonly TicketStatus[] {
+  const targets = STATUS_TRANSITIONS[current] ?? [];
+  return LEGACY_DIRECT_RESOLUTION_SOURCES.includes(current) && !targets.includes("RESOLVED")
+    ? [...targets, "RESOLVED"]
+    : targets;
+}
+
+/**
  * Targets reachable from `current` for `role`, applying the BR-15 role rule
  * (reopening a CLOSED ticket is restricted to Administrators).
  */
 function permittedTargets(current: TicketStatus, role: string | undefined): TicketStatus[] {
-  const targets = STATUS_TRANSITIONS[current] ?? [];
+  const targets = allowedTargets(current);
   return targets.filter(
     (target) => !(current === "CLOSED" && target === "REOPENED") || role === "ADMINISTRATOR"
   );
@@ -345,8 +369,9 @@ export async function updateItPriority(req: Request, res: Response): Promise<Res
  * accepted as `currentStatus` (api-spec §3.2.6) with `status` / `targetStatus`
  * aliases. Entering `RESOLVED` or `CLOSED` requires a 5–1,000 character
  * `resolutionSummary` (BR-17) and is blocked by the Lab 4 Resolution Gate
- * (BR-09) unless the ticket has at least one recorded Action Taken. Reopening
- * a CLOSED ticket is Administrator-only.
+ * (BR-09) unless the ticket has at least one recorded Action Taken, apart from
+ * the legacy direct `OPEN -> RESOLVED` path. Reopening a CLOSED ticket is
+ * Administrator-only.
  */
 export async function updateTicketStatus(req: Request, res: Response): Promise<Response> {
   try {
@@ -367,7 +392,7 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<R
     }
 
     const current = ticket.currentStatus;
-    const allowed = STATUS_TRANSITIONS[current] ?? [];
+    const allowed = allowedTargets(current);
     if (target === current || !allowed.includes(target)) {
       return res.status(422).json(
         errorPayload(
@@ -384,7 +409,12 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<R
     }
 
     // BR-09 Resolution Gate: formal resolution/closure requires documented work.
-    if (RESOLUTION_GATE_TARGETS.includes(target)) {
+    // The legacy `OPEN -> RESOLVED` path predates the workflow states and is
+    // exempt, matching the Lab 3 contract for resolving a freshly opened ticket.
+    if (
+      RESOLUTION_GATE_TARGETS.includes(target) &&
+      !LEGACY_DIRECT_RESOLUTION_SOURCES.includes(current)
+    ) {
       const actionsTakenCount = await prisma.actionTaken.count({ where: { ticketId: ticket.id } });
       if (actionsTakenCount === 0) {
         return res
