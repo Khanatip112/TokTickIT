@@ -16,6 +16,7 @@ import {
 import { PriorityBadge } from "./PriorityBadge";
 import { TicketStatusBadge } from "./TicketStatusBadge";
 import { TicketCommentItem } from "./TicketCommentItem";
+import { ActionsTakenSection } from "./actions-taken/ActionsTakenSection.js";
 
 const MAX_COMMENT_LENGTH = 2000;
 
@@ -453,6 +454,9 @@ export const TicketDetailView: React.FC<TicketDetailViewProps> = ({
             </div>
           </div>
         ))}
+
+      {/* Lab 4 — Actions Taken (Issue 4): Requester read-only view */}
+      <ActionsTakenSection ticketId={ticketId} userRole="REQUESTER" />
 
       <div className="border-top pt-4 mt-4">
         <div className="d-flex align-items-center justify-content-between mb-3">

@@ -781,3 +781,93 @@ export async function postTicketInternalNote(
   }
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Actions Taken (Issue 3 / Issue 4)
+// ---------------------------------------------------------------------------
+
+export interface ActionTaken {
+  id: string;
+  ticketId: string;
+  actionDateTime: string;
+  description: string;
+  result: string;
+  performedById: string;
+  performedBy?: {
+    id: string;
+    name?: string;
+    email?: string;
+    fullName?: string;
+    role?: string;
+  };
+  followUpRequired: boolean;
+  followUpNote?: string | null;
+  attachmentNotes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Payload for creating a new action-taken record. */
+export interface CreateActionTakenPayload {
+  description: string;
+  result: string;
+  followUpRequired: boolean;
+  followUpNote?: string;
+  attachmentNotes?: string;
+  actionDateTime?: string;
+}
+
+/** Payload for updating an existing action-taken record. */
+export type UpdateActionTakenPayload = Partial<CreateActionTakenPayload>;
+
+/** GET /api/tickets/:id/actions-taken — returns all actions for a ticket. */
+export async function getActionsTaken(ticketId: string): Promise<ActionTaken[]> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    credentials: "include",
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to load actions taken.");
+    throw new ApiError(message, res.status, code);
+  }
+  const body = await res.json();
+  return Array.isArray(body) ? body : (body.data ?? []);
+}
+
+/** POST /api/tickets/:id/actions-taken — creates a new action record (IT_STAFF / ADMIN only). */
+export async function createActionTaken(
+  ticketId: string,
+  payload: CreateActionTakenPayload
+): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/tickets/${ticketId}/actions-taken`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to create action taken.");
+    throw new ApiError(message, res.status, code);
+  }
+  const body = await res.json();
+  return body.data ?? body;
+}
+
+/** PUT /api/actions-taken/:actionId — updates an existing action record (IT_STAFF / ADMIN only). */
+export async function updateActionTaken(
+  actionId: string,
+  payload: UpdateActionTakenPayload
+): Promise<ActionTaken> {
+  const res = await fetch(`${API_URL}/api/actions-taken/${actionId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const { message, code } = await readError(res, "Failed to update action taken.");
+    throw new ApiError(message, res.status, code);
+  }
+  const body = await res.json();
+  return body.data ?? body;
+}
+
