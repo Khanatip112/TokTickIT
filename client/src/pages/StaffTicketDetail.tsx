@@ -9,6 +9,7 @@ import {
   claimStaffTicket,
   getStaffTicket,
   getStaffUsers,
+  getAttachmentDownloadUrl,
   getTicketComments,
   getTicketInternalNotes,
   postTicketComment,
@@ -20,6 +21,7 @@ import { useAuth } from "../context/AuthContext.js";
 import { PriorityBadge, PRIORITY_OPTIONS } from "../components/PriorityBadge.js";
 import { TicketStatusBadge, TICKET_STATUS_OPTIONS } from "../components/TicketStatusBadge.js";
 import { TicketCommentItem } from "../components/TicketCommentItem.js";
+import { ActionsTakenSection } from "../components/actions-taken/ActionsTakenSection.js";
 
 interface StaffTicketDetailProps {
   ticketId: string;
@@ -32,8 +34,8 @@ const MAX_RESOLUTION_LENGTH = 1000;
 const MAX_COMMENT_LENGTH = 2000;
 const RESOLUTION_TARGETS: StaffTicketStatus[] = ["RESOLVED", "CLOSED"];
 
-/** Activity tabs (ui-spec §4.5). Service Actions is a Lab 4 placeholder. */
-type ActivityTab = "comments" | "notes" | "attachments";
+/** Activity tabs (ui-spec §4.5). Service Actions is now Actions Taken in Lab 4. */
+type ActivityTab = "comments" | "notes" | "attachments" | "actions";
 
 const statusLabel = (value: StaffTicketStatus): string =>
   TICKET_STATUS_OPTIONS.find((option) => option.value === value)?.label ?? value;
@@ -661,20 +663,26 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
                 }
                 onClick={() => setActivityTab("attachments")}
               >
-                Attachments ({ticket.attachments.length})
+                Attachments ({(ticket.attachments ?? []).length})
               </button>
             </li>
             <li className="nav-item" role="presentation">
               <button
                 type="button"
                 role="tab"
-                aria-selected={false}
-                data-testid="service-actions-tab"
-                className="nav-link"
-                disabled
-                title="Service Actions will be available in Lab 4."
+                id="tab-actions-taken"
+                aria-controls="panel-actions-taken"
+                aria-selected={activityTab === "actions"}
+                data-testid="actions-taken-tab"
+                className={`nav-link ${activityTab === "actions" ? "active" : ""}`}
+                style={
+                  activityTab === "actions"
+                    ? { color: "#006B3C", fontWeight: 600, borderBottom: "3px solid #006B3C" }
+                    : undefined
+                }
+                onClick={() => setActivityTab("actions")}
               >
-                Service Actions (0)
+                🛠️ Actions Taken
               </button>
             </li>
           </ul>
@@ -806,6 +814,64 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
                     ))}
                 </div>
               )}
+            </div>
+          )}
+          {activityTab === "attachments" && (
+            <div
+              id="panel-attachments"
+              role="tabpanel"
+              aria-labelledby="tab-attachments"
+              data-testid="attachments-panel"
+            >
+              {(ticket.attachments ?? []).filter((attachment) => !attachment.isRemoved).length === 0 ? (
+                <p className="text-muted small mb-0" data-testid="attachments-empty">
+                  No active attachments on this ticket.
+                </p>
+              ) : (
+                <div className="d-flex flex-column gap-2" data-testid="attachments-list">
+                  {(ticket.attachments ?? [])
+                    .filter((attachment) => !attachment.isRemoved)
+                    .map((attachment) => (
+                      <div
+                        key={attachment.id}
+                        className="card p-3 border d-flex flex-row align-items-center justify-content-between bg-white shadow-sm"
+                      >
+                        <div className="d-flex align-items-center gap-3">
+                          <span className="fs-4" aria-hidden="true">📄</span>
+                          <div>
+                            <strong className="d-block text-dark">
+                              {attachment.originalName || attachment.fileName}
+                            </strong>
+                            <small className="text-muted">
+                              {((attachment.sizeBytes || 0) / 1024).toFixed(1)} KB • Uploaded{" "}
+                              {new Date(attachment.createdAt).toLocaleDateString()}
+                            </small>
+                          </div>
+                        </div>
+                        {user && (
+                          <a
+                            href={getAttachmentDownloadUrl(attachment.id, user.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-sm btn-outline-primary"
+                          >
+                            ⬇️ Download
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+          {activityTab === "actions" && (
+            <div
+              id="panel-actions-taken"
+              role="tabpanel"
+              aria-labelledby="tab-actions-taken"
+              data-testid="actions-taken-panel"
+            >
+              <ActionsTakenSection ticketId={ticketId} userRole={user?.role} />
             </div>
           )}
         </div>
