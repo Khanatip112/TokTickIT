@@ -25,6 +25,12 @@ const INDICATION_ACTIVE_STATUSES: readonly TicketStatus[] = [
 /** Statuses that require a resolution summary when entered (BR-17). */
 const RESOLUTION_TARGETS: readonly TicketStatus[] = ["RESOLVED", "CLOSED"];
 
+/** Statuses guarded by the Lab 4 Resolution Gate (BR-09). */
+const RESOLUTION_GATE_TARGETS: readonly TicketStatus[] = ["RESOLVED", "CLOSED"];
+
+export const RESOLUTION_GATE_MESSAGE =
+  "Cannot resolve or close a ticket without at least one recorded Action Taken.";
+
 const MIN_RESOLUTION_LENGTH = 5;
 const MAX_RESOLUTION_LENGTH = 1000;
 const MAX_NOTE_LENGTH = 2000;
@@ -33,21 +39,28 @@ const RESOLUTION_INDICATION_TEXT =
   "Requester indicated that the problem appears resolved.";
 
 /**
- * BR-15 (Status Transition Enforcement Matrix).
- * Any transition not listed for the current status must be rejected with
- * `422 Unprocessable Entity`. `PENDING` (legacy DB enum) has no permitted
- * transitions, and `CANCELLED` is terminal.
+ * BR-15 (Status Transition Enforcement Matrix), Issue 5.
+ *
+ * The matrix is intentionally narrow: only the transitions listed for the
+ * current status are accepted, and any other request (including a no-op to the
+ * same status) is rejected with `422 Unprocessable Entity`.
+ *
+ * Escape hatches such as `NEW -> IN_PROGRESS` or `IN_PROGRESS -> OPEN` are not
+ * permitted: staff must claim/assign to open a NEW ticket and must move through
+ * the documented workflow. `PENDING` is a legacy DB enum value with no
+ * permitted transitions, and `CANCELLED` is terminal.
  */
 export const STATUS_TRANSITIONS: Record<string, readonly TicketStatus[]> = {
-  NEW: ["OPEN", "IN_PROGRESS", "CANCELLED"],
-  OPEN: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
-  IN_PROGRESS: ["WAITING_FOR_REQUESTER", "RESOLVED", "OPEN", "CANCELLED"],
-  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "OPEN", "RESOLVED", "CANCELLED"],
+  NEW: ["OPEN", "CANCELLED"],
+  OPEN: ["IN_PROGRESS", "WAITING_FOR_REQUESTER", "CANCELLED"],
+  IN_PROGRESS: ["WAITING_FOR_REQUESTER", "RESOLVED", "CANCELLED"],
+  WAITING_FOR_REQUESTER: ["IN_PROGRESS", "RESOLVED", "CANCELLED"],
   RESOLVED: ["CLOSED", "REOPENED"],
-  REOPENED: ["IN_PROGRESS", "OPEN", "RESOLVED", "CANCELLED"],
+  REOPENED: ["IN_PROGRESS", "RESOLVED"],
   // Terminal state; reopening is Administrator-only (BR-15).
   CLOSED: ["REOPENED"],
   CANCELLED: [],
+  PENDING: [],
 };
 
 function errorPayload(code: string, message: string) {
@@ -119,6 +132,7 @@ export async function getStaffTicketDetail(req: Request, res: Response): Promise
           select: {
             comments: true,
             internalNotes: true,
+            actionsTaken: true,
             attachments: { where: { isRemoved: false } },
           },
         },
@@ -156,6 +170,9 @@ export async function getStaffTicketDetail(req: Request, res: Response): Promise
       activeAttachmentsCount: ticket._count.attachments,
       publicCommentsCount: ticket._count.comments,
       internalNotesCount: ticket._count.internalNotes,
+      // Lab 4 Resolution Gate (BR-09): the UI uses this to warn that a
+      // RESOLVED/CLOSED transition is blocked until an Action Taken exists.
+      actionsTakenCount: ticket._count.actionsTaken,
       permittedTransitions: permittedTargets(ticket.currentStatus, req.user?.role),
     });
   } catch (error) {
@@ -327,7 +344,9 @@ export async function updateItPriority(req: Request, res: Response): Promise<Res
  * Advances the ticket through the BR-15 lifecycle matrix. The target status is
  * accepted as `currentStatus` (api-spec §3.2.6) with `status` / `targetStatus`
  * aliases. Entering `RESOLVED` or `CLOSED` requires a 5–1,000 character
- * `resolutionSummary` (BR-17). Reopening a CLOSED ticket is Administrator-only.
+ * `resolutionSummary` (BR-17) and is blocked by the Lab 4 Resolution Gate
+ * (BR-09) unless the ticket has at least one recorded Action Taken. Reopening
+ * a CLOSED ticket is Administrator-only.
  */
 export async function updateTicketStatus(req: Request, res: Response): Promise<Response> {
   try {
@@ -362,6 +381,16 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<R
       return res
         .status(403)
         .json(errorPayload("FORBIDDEN", "Only Administrators may reopen a closed ticket."));
+    }
+
+    // BR-09 Resolution Gate: formal resolution/closure requires documented work.
+    if (RESOLUTION_GATE_TARGETS.includes(target)) {
+      const actionsTakenCount = await prisma.actionTaken.count({ where: { ticketId: ticket.id } });
+      if (actionsTakenCount === 0) {
+        return res
+          .status(422)
+          .json(errorPayload("UNPROCESSABLE_ENTITY", RESOLUTION_GATE_MESSAGE));
+      }
     }
 
     let resolutionSummary = ticket.resolutionSummary;

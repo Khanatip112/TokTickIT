@@ -55,7 +55,7 @@ export const ActionsTakenSection: React.FC<ActionsTakenSectionProps> = ({
     setLoadError(null);
     try {
       const list = await getActionsTaken(ticketId);
-      setActions(Array.isArray(list) ? list : (list as any)?.data ?? []);
+      setActions(Array.isArray(list) ? list : ((list as { data?: ActionTaken[] })?.data ?? []));
     } catch (err) {
       setLoadError(
         err instanceof ApiError

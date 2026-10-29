@@ -4,7 +4,7 @@ import { chromium } from "@playwright/test";
 import { PrismaClient } from "../server/node_modules/@prisma/client/index.js";
 
 const BASE_URL = "http://localhost:5173";
-const API_URL = "http://localhost:3000";
+const _API_URL = "http://localhost:3000";
 const SCREENSHOT_BASE = "artifacts/lab-03/screenshots";
 
 const DIRS = {

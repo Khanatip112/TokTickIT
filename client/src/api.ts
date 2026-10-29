@@ -592,6 +592,8 @@ export interface StaffTicketDetail extends StaffTicket {
   resolutionSummary: string | null;
   requester: { id: string; name: string; email: string; department?: string | null };
   attachments: Attachment[];
+  /** Recorded Actions Taken (Lab 4 Resolution Gate, BR-09). */
+  actionsTakenCount?: number;
   /**
    * Target statuses allowed for the current status + role, computed from the
    * server-side BR-15 transition matrix (admins additionally see the

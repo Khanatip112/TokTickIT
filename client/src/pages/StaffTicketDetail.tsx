@@ -33,6 +33,8 @@ const MIN_RESOLUTION_LENGTH = 5;
 const MAX_RESOLUTION_LENGTH = 1000;
 const MAX_COMMENT_LENGTH = 2000;
 const RESOLUTION_TARGETS: StaffTicketStatus[] = ["RESOLVED", "CLOSED"];
+const RESOLUTION_GATE_NOTICE =
+  "Resolution Gate: record at least one Action Taken before resolving or closing this ticket.";
 
 /** Activity tabs (ui-spec §4.5). Service Actions is now Actions Taken in Lab 4. */
 type ActivityTab = "comments" | "notes" | "attachments" | "actions";
@@ -311,6 +313,9 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
   const canClaim = isUnassigned || !ownedByCurrentUser;
   const transitionOptions = ticket.permittedTransitions;
   const pendingNeedsSummary = pendingStatus !== "" && RESOLUTION_TARGETS.includes(pendingStatus);
+  // Server-computed count (BR-09). `undefined` means the field was not
+  // provided, so the server stays the single authority for gate enforcement.
+  const resolutionGateNeedsAction = ticket.actionsTakenCount === 0;
 
   return (
     <div data-testid="staff-ticket-detail">
@@ -593,6 +598,11 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
               status to {statusLabel(pendingStatus as StaffTicketStatus)}.
             </small>
           )}
+        {pendingNeedsSummary && resolutionGateNeedsAction && (
+          <small className="text-warning d-block mt-1" data-testid="resolution-gate-notice">
+            {RESOLUTION_GATE_NOTICE}
+          </small>
+        )}
       </div>
 
       {/* Tabbed Activity Section (ui-spec §4.5) */}
