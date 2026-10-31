@@ -5,6 +5,8 @@ import { Ticket, Category, Pagination, getMyTickets, getCategories } from "../ap
 interface MyTicketsListProps {
   onViewTicket: (ticketId: string) => void;
   onCreateTicket: () => void;
+  /** Status filter supplied by a dashboard drill-down (`/my-tickets?status=...`). */
+  initialStatus?: string;
 }
 
 type SortColumn = "ticketNumber" | "createdAt" | "updatedAt";
@@ -45,7 +47,7 @@ const formatDate = (value: string) =>
     minute: "2-digit",
   });
 
-export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCreateTicket }) => {
+export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCreateTicket, initialStatus }) => {
   const { user } = useAuth();
   const requesterId = user?.id;
 
@@ -60,7 +62,7 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [selectedReqPriority, setSelectedReqPriority] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>(initialStatus ?? "");
 
   // Sorting State
   const [sortColumn, setSortColumn] = useState<SortColumn>("createdAt");
@@ -86,6 +88,11 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
   useEffect(() => {
     setCurrentPage(1);
   }, [debouncedSearch, selectedCategoryId, selectedReqPriority, selectedStatus, sortColumn, sortOrder]);
+
+  // Dashboard drill-down: apply the status supplied in the URL.
+  useEffect(() => {
+    setSelectedStatus(initialStatus ?? "");
+  }, [initialStatus]);
 
   // Switching requester resets page + reloads
   useEffect(() => {
@@ -267,9 +274,12 @@ export const MyTicketsList: React.FC<MyTicketsListProps> = ({ onViewTicket, onCr
             >
               <option value="">All Statuses</option>
               <option value="NEW">New</option>
+              <option value="OPEN">Open</option>
               <option value="IN_PROGRESS">In Progress</option>
+              <option value="WAITING_FOR_REQUESTER">Waiting for Requester</option>
               <option value="RESOLVED">Resolved</option>
               <option value="CLOSED">Closed</option>
+              <option value="REOPENED">Reopened</option>
             </select>
           </div>
         </div>

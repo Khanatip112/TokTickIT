@@ -12,6 +12,7 @@ import { enforcePasswordChange, loadSession } from "./middleware/auth.js";
 import { ticketDetailRouter } from "./routes/ticketDetail.routes.js";
 import { commentsRouter } from "./routes/comments.routes.js";
 import { actionsTakenRouter, ticketActionsRouter } from "./routes/actionsTaken.routes.js";
+import { dashboardsRouter } from "./routes/dashboards.routes.js";
 import multer from "multer";
 
 
@@ -78,6 +79,12 @@ app.use("/api/tickets", commentsRouter);
 // ---------------------------------------------------------------------------
 app.use("/api/tickets", ticketActionsRouter);
 app.use("/api/actions-taken", actionsTakenRouter);
+
+// ---------------------------------------------------------------------------
+// Lab 4 — Role Dashboards (Issue 6)
+// `GET /api/dashboards/requester` (authenticated; ownership-scoped metrics).
+// ---------------------------------------------------------------------------
+app.use("/api/dashboards", dashboardsRouter);
 
 // ---------------------------------------------------------------------------
 // Lab 3 — Requester identity bridge (Issue 3)
@@ -337,8 +344,10 @@ app.get("/api/tickets", enforcePasswordChange, async (req: Request, res: Respons
       "OPEN",
       "IN_PROGRESS",
       "PENDING",
+      "WAITING_FOR_REQUESTER",
       "RESOLVED",
       "CLOSED",
+      "REOPENED",
     ] as const);
     const sortBy = parseEnum(req.query.sortBy, [
       "createdAt",
