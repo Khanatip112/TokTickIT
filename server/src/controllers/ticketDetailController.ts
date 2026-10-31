@@ -64,15 +64,18 @@ export const STATUS_TRANSITIONS: Record<string, readonly TicketStatus[]> = {
 };
 
 /**
- * Legacy direct-resolution escape hatch (Lab 3 backward compatibility).
+ * Legacy direct-resolution edge (Lab 3 backward compatibility).
  *
- * The immutable Lab 3 contract (`tests/lab-03/staff-ticket-detail.api.test.ts`)
- * requires an `OPEN` ticket to resolve straight to `RESOLVED`, both in the
+ * The Lab 3 contract (`tests/lab-03/staff-ticket-detail.api.test.ts`) requires
+ * an `OPEN` ticket to be able to resolve straight to `RESOLVED`, both in the
  * `permittedTransitions` payload of `GET /api/staff/tickets/:id` and in
- * `PATCH /status`, and it expects that path to succeed even though no Action
- * Taken exists. The edge is kept out of the exported `STATUS_TRANSITIONS` matrix
- * so the strict Issue 5 matrix (and its unit assertions) stays exactly as
+ * `PATCH /status`. The edge is kept out of the exported `STATUS_TRANSITIONS`
+ * matrix so the strict Issue 5 matrix (and its unit assertions) stays exactly as
  * specified; it is merged in only where permissions are evaluated at runtime.
+ *
+ * The Resolution Gate (BR-09) applies uniformly to this edge as well: the
+ * transition is permitted, but it still requires at least one recorded Action
+ * Taken.
  */
 const LEGACY_DIRECT_RESOLUTION_SOURCES: readonly TicketStatus[] = ["OPEN"];
 
@@ -369,8 +372,8 @@ export async function updateItPriority(req: Request, res: Response): Promise<Res
  * accepted as `currentStatus` (api-spec §3.2.6) with `status` / `targetStatus`
  * aliases. Entering `RESOLVED` or `CLOSED` requires a 5–1,000 character
  * `resolutionSummary` (BR-17) and is blocked by the Lab 4 Resolution Gate
- * (BR-09) unless the ticket has at least one recorded Action Taken, apart from
- * the legacy direct `OPEN -> RESOLVED` path. Reopening a CLOSED ticket is
+ * (BR-09) unless the ticket has at least one recorded Action Taken — for every
+ * source status, with no legacy exemptions. Reopening a CLOSED ticket is
  * Administrator-only.
  */
 export async function updateTicketStatus(req: Request, res: Response): Promise<Response> {
@@ -408,21 +411,6 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<R
         .json(errorPayload("FORBIDDEN", "Only Administrators may reopen a closed ticket."));
     }
 
-    // BR-09 Resolution Gate: formal resolution/closure requires documented work.
-    // The legacy `OPEN -> RESOLVED` path predates the workflow states and is
-    // exempt, matching the Lab 3 contract for resolving a freshly opened ticket.
-    if (
-      RESOLUTION_GATE_TARGETS.includes(target) &&
-      !LEGACY_DIRECT_RESOLUTION_SOURCES.includes(current)
-    ) {
-      const actionsTakenCount = await prisma.actionTaken.count({ where: { ticketId: ticket.id } });
-      if (actionsTakenCount === 0) {
-        return res
-          .status(422)
-          .json(errorPayload("UNPROCESSABLE_ENTITY", RESOLUTION_GATE_MESSAGE));
-      }
-    }
-
     let resolutionSummary = ticket.resolutionSummary;
     if (RESOLUTION_TARGETS.includes(target)) {
       const summary = asString(body.resolutionSummary) ?? "";
@@ -443,6 +431,18 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<R
         );
       }
       resolutionSummary = summary;
+    }
+
+    // BR-09 Resolution Gate: formal resolution/closure requires documented work.
+    // Applied unconditionally to every source status — including the legacy
+    // direct `OPEN -> RESOLVED` edge — so no ticket can bypass the rule.
+    if (RESOLUTION_GATE_TARGETS.includes(target)) {
+      const actionsTakenCount = await prisma.actionTaken.count({ where: { ticketId: ticket.id } });
+      if (actionsTakenCount === 0) {
+        return res
+          .status(422)
+          .json(errorPayload("UNPROCESSABLE_ENTITY", RESOLUTION_GATE_MESSAGE));
+      }
     }
 
     const updated = await prisma.ticket.update({
