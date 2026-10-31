@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext.js";
 import { useRouter } from "../router.js";
 import { RoleBadge } from "./RoleBadge.js";
 
-export type HeaderTab = "my-tickets" | "create-ticket" | "admin" | "staff-queue";
+export type HeaderTab = "my-tickets" | "create-ticket" | "admin" | "staff-queue" | "dashboard";
 
 interface HeaderProps {
   activeTab: HeaderTab;
@@ -55,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
   const navTabs: { key: HeaderTab; label: string }[] = [
     ...(user?.role === "ADMINISTRATOR" ? [{ key: "admin" as HeaderTab, label: "Admin" }] : []),
     ...(isStaff ? [{ key: "staff-queue" as HeaderTab, label: "My Queue" }] : []),
+    ...(user?.role === "REQUESTER" ? [{ key: "dashboard" as HeaderTab, label: "Dashboard" }] : []),
     { key: "my-tickets", label: "My Tickets" },
     { key: "create-ticket", label: "＋ Create Ticket" },
   ];

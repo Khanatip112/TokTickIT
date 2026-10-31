@@ -12,6 +12,7 @@ import { ChangePassword } from "./pages/ChangePassword.js";
 import { UserManagement } from "./pages/UserManagement.js";
 import { StaffTicketQueue } from "./pages/StaffTicketQueue.js";
 import { StaffTicketDetail } from "./pages/StaffTicketDetail.js";
+import { RequesterDashboard } from "./pages/requester/RequesterDashboard.js";
 
 function LoadingScreen() {
   return (
@@ -31,6 +32,7 @@ function pathForTab(tab: HeaderTab): string {
   if (tab === "admin") return "/admin/users";
   if (tab === "staff-queue") return "/staff/queue";
   if (tab === "create-ticket") return "/create-ticket";
+  if (tab === "dashboard") return "/requester/dashboard";
   return "/my-tickets";
 }
 
@@ -98,6 +100,40 @@ function StaffTicketDetailShell({ ticketId }: { ticketId: string }) {
   );
 }
 
+/** Requester dashboard shell (`/requester/dashboard`, Lab 4 Issue 6). */
+function RequesterDashboardShell() {
+  const { navigate } = useRouter();
+  const { user } = useAuth();
+  return (
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      <Header activeTab="dashboard" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <main className="container-fluid px-4 py-4 flex-grow-1">
+        <RequesterDashboard
+          userName={user?.name}
+          onNavigate={(to) => navigate(to)}
+          onViewTicket={(ticketId) => navigate(`/requester/tickets/${ticketId}`)}
+        />
+      </main>
+    </div>
+  );
+}
+
+/** Requester ticket detail shell opened from the dashboard (`/requester/tickets/:id`). */
+function RequesterTicketDetailShell({ ticketId }: { ticketId: string }) {
+  const { navigate } = useRouter();
+  return (
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      <Header activeTab="dashboard" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <main className="container-fluid px-4 py-4 flex-grow-1">
+        <TicketDetailView
+          ticketId={ticketId}
+          onBackToTickets={() => navigate("/requester/dashboard")}
+        />
+      </main>
+    </div>
+  );
+}
+
 /** Authenticated application shell: header + requester ticket views. */
 function AppShell() {
   const { path, navigate } = useRouter();
@@ -105,6 +141,11 @@ function AppShell() {
   const [activeTab, setActiveTab] = useState<HeaderTab>(
     path === "/create-ticket" ? "create-ticket" : "my-tickets"
   );
+
+  // Dashboard drill-downs land on `/my-tickets?status=...`; forward that
+  // filter to the list without changing its own filter UI.
+  const queryString = path.includes("?") ? path.slice(path.indexOf("?") + 1) : "";
+  const statusFilter = new URLSearchParams(queryString).get("status") ?? undefined;
 
   const handleNavigateTab = (tab: HeaderTab) => {
     setSelectedTicketId(null);
@@ -129,6 +170,7 @@ function AppShell() {
           />
         ) : (
           <MyTicketsList
+            initialStatus={statusFilter}
             onViewTicket={(ticketId) => setSelectedTicketId(ticketId)}
             onCreateTicket={() => handleNavigateTab("create-ticket")}
           />
@@ -169,6 +211,24 @@ function AppRoutes() {
     return (
       <ProtectedRoute>
         <ChangePassword />
+      </ProtectedRoute>
+    );
+  }
+
+  // Lab 4 Issue 6 — Requester Dashboard and its ticket-detail drill-down.
+  if (path === "/requester/dashboard") {
+    return (
+      <ProtectedRoute>
+        <RequesterDashboardShell />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path.startsWith("/requester/tickets/")) {
+    const ticketId = path.slice("/requester/tickets/".length);
+    return (
+      <ProtectedRoute>
+        <RequesterTicketDetailShell ticketId={ticketId} />
       </ProtectedRoute>
     );
   }
