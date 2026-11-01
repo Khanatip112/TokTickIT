@@ -1,10 +1,11 @@
-# TokTickIT - IT Service Desk (Lab 1, Lab 2 & Lab 3)
+# TokTickIT - IT Service Desk (Lab 1, Lab 2, Lab 3 & Lab 4)
 
 TokTickIT is a full-stack IT service desk web application designed to handle IT support requests across Account and Access, Hardware, Software, and Network domains. It is engineered with strict role-based access control, resilient backend authorization, and the **Zen Green** design language.
 
 - **Lab 1**: Established the foundational full-stack vertical slice connecting React, Express, Prisma ORM, and PostgreSQL with master category lookup endpoints and health check diagnostics.
 - **Lab 2**: Delivered the Requester-facing IT Ticketing MVP featuring a Development Identity Switcher, ticket creation with auto-generated sequential numbers, attachment uploads with soft-removal audit trails, searchable and paginated "My Tickets" workspace, and server-enforced requester data isolation.
 - **Lab 3**: Replaced the temporary Development Requester switcher with secure credential-based authentication and role-based authorization (RBAC). Introduced mandatory first-login password change workflows, the IT Staff Ticket Queue with server-side queries, operational Ticket Detail panels with ownership claim/reassignment, independent IT Priority, permitted status transitions (BR-15), append-only Public Comments and role-restricted Internal Notes (amber styling), and minimalist Administrator User Management with account safety guards.
+- **Lab 4**: Added an auditable **Actions Taken** activity log per ticket, enforced the **Resolution Gate** (a ticket cannot be resolved or closed without at least one recorded action), delivered role-tailored **Requester, IT Staff, and Administrator dashboards** with drill-down links, and completed full regression hardening with unit, API, UI, and Playwright E2E coverage.
 
 ---
 
@@ -80,6 +81,27 @@ TokTickIT enforces strict server-side authorization across three distinct roles:
   - **BR-22 Self-Deactivation Guard**: Logged-in Administrator cannot deactivate their own account.
   - **BR-23 Last-Admin Guard**: Backend and UI block deactivation or role demotion of the final active Administrator.
 
+### Lab 4 Increment: Actions Taken, Resolution Gate & Dashboards
+- **Actions Taken (`/api/tickets/:id/actions-taken`)**:
+  - Chronological, auditable work log stored as a child record of each Ticket (`ActionTaken`).
+  - Captures action date/time, description, result (`SUCCESS`, `PARTIAL`, `PENDING`, `FAILED`), follow-up requirement and note, and attachment notes.
+  - `performedBy` is derived from the authenticated session, never from client input.
+  - IT Staff and Administrators can create and edit entries; Requesters see a read-only list on their own tickets.
+- **Ticket Workflow & Resolution Gate**:
+  - Server-enforced status transition matrix (BR-15); illegal jumps are rejected with `422 Unprocessable Entity`.
+  - **BR-09 Resolution Gate**: `RESOLVED` and `CLOSED` are blocked until at least one Action Taken exists.
+  - Resolution summary remains mandatory when resolving or closing a ticket (BR-17).
+  - UI hides non-permitted status options and shows a clear Resolution Gate notice.
+- **Role-Tailored Dashboards**:
+  - **Requester Dashboard (`/requester/dashboard`)**: open, in-progress, waiting-for-requester, and recently resolved metrics with drill-downs into pre-filtered My Tickets.
+  - **IT Staff Dashboard (`/staff/dashboard`)**: unassigned, assigned-to-me, in-progress, waiting, and urgent metrics, plus status/priority breakdowns and queue drill-down filters.
+  - **Administrator Dashboard**: extends the Staff view with user account statistics (total, active, inactive, and per-role counts).
+  - Requesters are blocked from the Staff Dashboard in both the UI and the API (`403 Forbidden`).
+- **Quality & Regression Hardening**:
+  - Lab 4 unit, API integration, UI component, and Playwright E2E suites.
+  - Automated review screenshots at Desktop (`1280x800`), Tablet (`768x1024`), and Mobile (`375x667`) under `artifacts/lab-04/screenshots/`.
+  - Full backward compatibility verified for Labs 1 to 3.
+
 ---
 
 ## 🔑 Default Seed Credentials (Lab 3 §5.3)
@@ -111,12 +133,17 @@ Password123!
 toktickit/
 ├── artifacts/                           # Playwright test results & review screenshots
 │   ├── lab-02/                          # Lab 2 visual review captures
-│   └── lab-03/                          # Lab 3 visual review captures
+│   ├── lab-03/                          # Lab 3 visual review captures
+│   │   └── screenshots/
+│   │       ├── authentication/          # Login, forced password change, invalid/inactive banners
+│   │       ├── staff-queue/             # Desktop/mobile queues, search results, my-tickets
+│   │       ├── staff-ticket-detail/     # Operations panel, amber internal notes, comments
+│   │       └── user-management/         # Admin directory, create modal, safety guards
+│   └── lab-04/                          # Lab 4 E2E results & review screenshots
 │       └── screenshots/
-│           ├── authentication/          # Login, forced password change, invalid/inactive banners
-│           ├── staff-queue/             # Desktop/mobile queues, search results, my-tickets
-│           ├── staff-ticket-detail/     # Operations panel, amber internal notes, comments
-│           └── user-management/         # Admin directory, create modal, safety guards
+│           ├── staff-dashboard/         # Staff and Admin dashboards (desktop/tablet/mobile)
+│           ├── requester-dashboard/     # Requester metric cards and drill-downs
+│           └── actions-taken/           # Action list, create/edit forms, read-only view
 ├── client/                              # React 18 + TypeScript + Vite frontend
 │   ├── src/
 │   │   ├── components/                  # Header, Badges, Modals, PasswordField, CommentItem
@@ -128,30 +155,41 @@ toktickit/
 │   └── tests/                           # Vitest + React Testing Library component tests
 │       ├── lab-01/                      # Lab 1 client tests
 │       ├── lab-02/                      # Lab 2 Requester UI tests
-│       └── lab-03/                      # Lab 3 Login, Password, Queue, Detail, Admin tests
+│       ├── lab-03/                      # Lab 3 Login, Password, Queue, Detail, Admin tests
+│       └── lab-04/                      # Lab 4 Actions Taken & Dashboard UI tests
 ├── docs/                                # Specification by Deliberate Discovery documentation
 │   ├── lab-01/                          # Lab 1 docs (ai-use.md, reviewer.md, tests.md)
 │   ├── lab-02/                          # Lab 2 docs (specification.md, ui-spec.md, api-spec.md, tests.md, ai-use.md, reviewer.md)
-│   └── lab-03/                          # Lab 3 docs
-│       ├── specification.md             # Functional requirements, business rules & RBAC matrix
-│       ├── ui-spec.md                   # Zen Green screens, states, tokens & responsive rules
-│       ├── api-spec.md                  # REST endpoints, request/response schemas & error codes
-│       ├── tests.md                     # Comprehensive test plan & AC traceability matrix
-│       ├── ai-use.md                    # AI prompting log, prompt engineering & reflections
-│       └── reviewer.md                  # Peer review record & Product Definition of Done
+│   ├── lab-03/                          # Lab 3 docs
+│   │   ├── specification.md             # Functional requirements, business rules & RBAC matrix
+│   │   ├── ui-spec.md                   # Zen Green screens, states, tokens & responsive rules
+│   │   ├── api-spec.md                  # REST endpoints, request/response schemas & error codes
+│   │   ├── tests.md                     # Comprehensive test plan & AC traceability matrix
+│   │   ├── ai-use.md                    # AI prompting log, prompt engineering & reflections
+│   │   └── reviewer.md                  # Peer review record & Product Definition of Done
+│   └── lab-04/                          # Lab 4 docs
+│       ├── specification.md             # Sprint 4 requirements, business rules & RBAC matrix
+│       ├── ui-spec.md                   # Actions Taken, dashboard screens & responsive rules
+│       ├── api-spec.md                  # Actions Taken, workflow & dashboard endpoint contracts
+│       └── tests.md                     # Lab 4 test plan & AC traceability matrix
 ├── e2e/                                 # Playwright E2E automation test suites
 │   ├── lab-02/                          # Lab 2 E2E requester flow tests
-│   └── lab-03/                          # Lab 3 E2E test suites
-│       ├── auth.spec.ts                 # Login, inactive accounts, password change wall
-│       ├── staff-flow.spec.ts           # Queue triage, claim, priority, status, notes
-│       ├── admin-flow.spec.ts           # User creation, editing, reset, self-deactivation guard
-│       └── support.ts                   # E2E test helpers, fixtures & seed credentials
+│   ├── lab-03/                          # Lab 3 E2E test suites
+│   │   ├── auth.spec.ts                 # Login, inactive accounts, password change wall
+│   │   ├── staff-flow.spec.ts           # Queue triage, claim, priority, status, notes
+│   │   ├── admin-flow.spec.ts           # User creation, editing, reset, self-deactivation guard
+│   │   └── support.ts                   # E2E test helpers, fixtures & seed credentials
+│   └── lab-04/                          # Lab 4 E2E test suites
+│       ├── actions-taken-flow.spec.ts   # Create/edit actions and requester read-only view
+│       ├── ticket-resolution.spec.ts    # Status matrix and Resolution Gate checks
+│       ├── dashboards.spec.ts           # Requester, Staff, and Admin dashboards & RBAC
+│       └── support.ts                   # Lab 4 helpers, viewports & screenshot capture
 ├── scripts/                             # Utility & automation scripts
 │   └── capture-lab3-screenshots.mjs     # Playwright screenshot generator (21 review captures)
 ├── server/                              # Node.js + Express + TypeScript backend
 │   ├── prisma/                          # Prisma schema, migrations & seed scripts
 │   │   ├── migrations/                  # Versioned PostgreSQL database migrations
-│   │   ├── schema.prisma                # Data model (User, Ticket, Attachment, Comment, Note)
+│   │   ├── schema.prisma                # Data model (User, Ticket, Attachment, Comment, Note, ActionTaken)
 │   │   └── seed.ts                      # Idempotent database seeder with realistic test fixtures
 │   ├── src/                             # Express application code
 │   │   ├── controllers/                 # Auth, Users, StaffQueue, TicketDetail, Comments controllers
@@ -161,7 +199,8 @@ toktickit/
 │   └── tests/                           # Supertest API integration tests
 │       ├── lab-01/                      # Lab 1 API tests
 │       ├── lab-02/                      # Lab 2 API tests
-│       └── lab-03/                      # Lab 3 API test suites (auth, queue, detail, notes, admin)
+│       ├── lab-03/                      # Lab 3 API test suites (auth, queue, detail, notes, admin)
+│       └── lab-04/                      # Lab 4 API tests (actions, workflow, dashboards)
 ├── playwright.config.ts                 # Playwright E2E test configuration
 ├── package.json                         # Root package workspace scripts
 └── README.md                            # Central project documentation
@@ -235,6 +274,23 @@ cd ..
 
 ---
 
+### Step 3.1: Lab 4 Setup & Database Initialization
+
+Lab 4 adds the `ActionTaken` model, the Resolution Gate rules, and the dashboard endpoints. Install dependencies from the project root (Step 1 installs the `client/` and `server/` packages), then apply the migration and load the updated seed data:
+
+```bash
+# From the project root
+npm install
+
+# Apply the Lab 4 migration and seed the database
+cd server
+npx prisma migrate dev
+npx prisma db seed
+cd ..
+```
+
+---
+
 ### Step 4: Running the Application
 
 1. **Start Express API Backend (Port 3000):**
@@ -250,6 +306,8 @@ cd ..
    npm run dev
    ```
    *Application entry:* `http://localhost:5173`
+
+*Lab 4 note:* the Actions Taken screens and all three dashboards use these same two services, so no additional setup is required.
 
 ---
 
@@ -298,12 +356,40 @@ Ensure both backend and frontend servers are running, or allow Playwright's webS
 npx playwright test e2e/lab-03/
 ```
 
-### 4. Automated Visual Review Screenshot Capture
+### 4. Lab 4 Automated Test Suites
+
+Run the Lab 4 API, UI, and E2E suites independently:
+
+```bash
+# Backend API Tests
+npx vitest run server/tests/lab-04/
+
+# Frontend UI Tests
+npx vitest run client/src/tests/lab-04/
+# If jsdom cannot be resolved from the project root, run from client/ instead:
+# cd client && npx vitest run src/tests/lab-04/
+
+# Playwright E2E Tests
+npx playwright test e2e/lab-04/
+```
+
+Covers:
+- `actions-taken.api.test.ts`: Create/update validation, session-derived `performedBy`, and RBAC
+- `ticket-workflow.api.test.ts`: Status transition matrix, Resolution Gate, and resolution summary rules
+- `requester-dashboard.api.test.ts`: Requester metric scoping and recent-ticket data
+- `staff-dashboard.api.test.ts`: Staff metrics, Administrator user statistics, and RBAC guards
+- `ActionsTaken.test.tsx`: Create/edit form validation and read-only Requester rendering
+- `RequesterDashboard.test.tsx` / `StaffDashboard.test.tsx`: Metric cards, drill-down links, and role gating
+- `e2e/lab-04/*.spec.ts`: Actions Taken, Resolution Gate, dashboards, and Requester RBAC flows
+
+### 5. Automated Visual Review Screenshot Capture
 Execute the automated Playwright script to capture all 21 review screenshots across desktop, tablet, and mobile viewports:
 ```bash
 node scripts/capture-lab3-screenshots.mjs
 ```
 All outputs are organized under `artifacts/lab-03/screenshots/` across four subdirectories: `authentication/`, `staff-queue/`, `staff-ticket-detail/`, and `user-management/`.
+
+Lab 4 review screenshots are captured automatically by `npx playwright test e2e/lab-04/` and saved under `artifacts/lab-04/screenshots/` in `staff-dashboard/`, `requester-dashboard/`, and `actions-taken/`.
 
 ---
 
@@ -319,3 +405,16 @@ All design specifications and engineering artifacts strictly follow the course S
 | **Test Plan & Traceability** | [docs/lab-03/tests.md](docs/lab-03/tests.md) | Comprehensive test matrix mapping Acceptance Criteria (AC-01 to AC-18) to automated unit, API, UI, and E2E test files. |
 | **AI Prompting & Reflection** | [docs/lab-03/ai-use.md](docs/lab-03/ai-use.md) | Complete log of AI prompts, model reflection, prompt engineering techniques, and specification/coding agent evaluation. |
 | **Peer Review Record** | [docs/lab-03/reviewer.md](docs/lab-03/reviewer.md) | Peer review audit trails, pull request links, review comments, responses, and Product Definition of Done verification checklist. |
+
+---
+
+## 📑 Lab 4 Course Documentation References
+
+Lab 4 follows the same Spec DD, Test DD, and AI-assisted workflow:
+
+| Document | File Path | Description |
+| :--- | :--- | :--- |
+| **Sprint Engineering Specification** | [docs/lab-04/specification.md](docs/lab-04/specification.md) | Sprint 4 goal, scope, Actions Taken requirements, workflow business rules, dashboard requirements, and Definition of Done. |
+| **UI Specification** | [docs/lab-04/ui-spec.md](docs/lab-04/ui-spec.md) | Actions Taken tab, create/edit forms, dashboard metric cards, drill-down behaviour, and responsive viewport rules. |
+| **REST API Specification** | [docs/lab-04/api-spec.md](docs/lab-04/api-spec.md) | Actions Taken, ticket workflow, and dashboard endpoint contracts, including request/response schemas and error codes. |
+| **Test Plan & Traceability** | [docs/lab-04/tests.md](docs/lab-04/tests.md) | Lab 4 test matrix mapping Acceptance Criteria to API, UI, and Playwright E2E test files. |
