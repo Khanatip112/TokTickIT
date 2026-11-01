@@ -55,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
   const navTabs: { key: HeaderTab; label: string }[] = [
     ...(user?.role === "ADMINISTRATOR" ? [{ key: "admin" as HeaderTab, label: "Admin" }] : []),
     ...(isStaff ? [{ key: "staff-queue" as HeaderTab, label: "My Queue" }] : []),
-    ...(user?.role === "REQUESTER" ? [{ key: "dashboard" as HeaderTab, label: "Dashboard" }] : []),
+    ...(user ? [{ key: "dashboard" as HeaderTab, label: "Dashboard" }] : []),
     { key: "my-tickets", label: "My Tickets" },
     { key: "create-ticket", label: "＋ Create Ticket" },
   ];

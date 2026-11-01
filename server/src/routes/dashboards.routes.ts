@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { enforcePasswordChange, requireAuth } from "../middleware/auth.js";
+import { enforcePasswordChange, requireAuth, requireRole } from "../middleware/auth.js";
 import { getRequesterDashboard } from "../controllers/dashboardController.js";
+import { getStaffDashboard } from "../controllers/staffDashboardController.js";
 
 /**
  * Lab 4 — Dashboard routes (Issue 6).
@@ -16,6 +17,15 @@ dashboardsRouter.get(
   requireAuth,
   enforcePasswordChange,
   getRequesterDashboard
+);
+
+// Lab 4 Issue 7 — IT Staff / Administrator operational dashboard.
+dashboardsRouter.get(
+  "/staff",
+  requireAuth,
+  enforcePasswordChange,
+  requireRole("IT_STAFF", "ADMINISTRATOR"),
+  getStaffDashboard
 );
 
 export default dashboardsRouter;
