@@ -13,6 +13,7 @@ import { UserManagement } from "./pages/UserManagement.js";
 import { StaffTicketQueue } from "./pages/StaffTicketQueue.js";
 import { StaffTicketDetail } from "./pages/StaffTicketDetail.js";
 import { RequesterDashboard } from "./pages/requester/RequesterDashboard.js";
+import { StaffDashboard } from "./pages/staff/StaffDashboard.js";
 
 function LoadingScreen() {
   return (
@@ -27,12 +28,16 @@ function LoadingScreen() {
   );
 }
 
-/** Maps a header navigation tab to its route. */
-function pathForTab(tab: HeaderTab): string {
+/** Maps a header navigation tab to its route (dashboard is role-aware). */
+function pathForTab(tab: HeaderTab, role?: string): string {
   if (tab === "admin") return "/admin/users";
   if (tab === "staff-queue") return "/staff/queue";
   if (tab === "create-ticket") return "/create-ticket";
-  if (tab === "dashboard") return "/requester/dashboard";
+  if (tab === "dashboard") {
+    return role === "IT_STAFF" || role === "ADMINISTRATOR"
+      ? "/staff/dashboard"
+      : "/requester/dashboard";
+  }
   return "/my-tickets";
 }
 
@@ -61,9 +66,10 @@ function AccessDenied() {
 /** Administrator console shell (`/admin/users`). */
 function AdminShell() {
   const { navigate } = useRouter();
+  const { user } = useAuth();
   return (
     <div className="min-vh-100 d-flex flex-column bg-light">
-      <Header activeTab="admin" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <Header activeTab="admin" setActiveTab={(tab) => navigate(pathForTab(tab, user?.role))} />
       <main className="container-fluid px-4 py-4 flex-grow-1">
         <UserManagement />
       </main>
@@ -71,14 +77,41 @@ function AdminShell() {
   );
 }
 
-/** IT Staff ticket queue shell (`/staff/queue`). */
-function StaffShell() {
+/** IT Staff / Administrator dashboard shell (`/staff/dashboard`, Lab 4 Issue 7). */
+function StaffDashboardShell() {
   const { navigate } = useRouter();
+  const { user } = useAuth();
   return (
     <div className="min-vh-100 d-flex flex-column bg-light">
-      <Header activeTab="staff-queue" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <Header activeTab="dashboard" setActiveTab={(tab) => navigate(pathForTab(tab, user?.role))} />
       <main className="container-fluid px-4 py-4 flex-grow-1">
-        <StaffTicketQueue onViewTicket={(ticketId) => navigate(`/staff/tickets/${ticketId}`)} />
+        <StaffDashboard
+          userName={user?.name}
+          role={user?.role}
+          onNavigate={(to) => navigate(to)}
+          onViewTicket={(ticketId) => navigate(`/staff/tickets/${ticketId}`)}
+        />
+      </main>
+    </div>
+  );
+}
+
+/** IT Staff ticket queue shell (`/staff/queue`). */
+function StaffShell() {
+  const { navigate, path } = useRouter();
+  const { user } = useAuth();
+  const queryString = path.includes("?") ? path.slice(path.indexOf("?") + 1) : "";
+  const query = new URLSearchParams(queryString);
+  return (
+    <div className="min-vh-100 d-flex flex-column bg-light">
+      <Header activeTab="staff-queue" setActiveTab={(tab) => navigate(pathForTab(tab, user?.role))} />
+      <main className="container-fluid px-4 py-4 flex-grow-1">
+        <StaffTicketQueue
+          initialOwnerId={query.get("ownerId") ?? undefined}
+          initialStatus={query.get("status") ?? undefined}
+          initialItPriority={query.get("itPriority") ?? undefined}
+          onViewTicket={(ticketId) => navigate(`/staff/tickets/${ticketId}`)}
+        />
       </main>
     </div>
   );
@@ -90,9 +123,10 @@ function StaffShell() {
  */
 function StaffTicketDetailShell({ ticketId }: { ticketId: string }) {
   const { navigate } = useRouter();
+  const { user } = useAuth();
   return (
     <div className="min-vh-100 d-flex flex-column bg-light">
-      <Header activeTab="staff-queue" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <Header activeTab="staff-queue" setActiveTab={(tab) => navigate(pathForTab(tab, user?.role))} />
       <main className="container-fluid px-4 py-4 flex-grow-1">
         <StaffTicketDetail ticketId={ticketId} onBackToQueue={() => navigate("/staff/queue")} />
       </main>
@@ -106,7 +140,7 @@ function RequesterDashboardShell() {
   const { user } = useAuth();
   return (
     <div className="min-vh-100 d-flex flex-column bg-light">
-      <Header activeTab="dashboard" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <Header activeTab="dashboard" setActiveTab={(tab) => navigate(pathForTab(tab, user?.role))} />
       <main className="container-fluid px-4 py-4 flex-grow-1">
         <RequesterDashboard
           userName={user?.name}
@@ -121,9 +155,10 @@ function RequesterDashboardShell() {
 /** Requester ticket detail shell opened from the dashboard (`/requester/tickets/:id`). */
 function RequesterTicketDetailShell({ ticketId }: { ticketId: string }) {
   const { navigate } = useRouter();
+  const { user } = useAuth();
   return (
     <div className="min-vh-100 d-flex flex-column bg-light">
-      <Header activeTab="dashboard" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+      <Header activeTab="dashboard" setActiveTab={(tab) => navigate(pathForTab(tab, user?.role))} />
       <main className="container-fluid px-4 py-4 flex-grow-1">
         <TicketDetailView
           ticketId={ticketId}
@@ -137,6 +172,7 @@ function RequesterTicketDetailShell({ ticketId }: { ticketId: string }) {
 /** Authenticated application shell: header + requester ticket views. */
 function AppShell() {
   const { path, navigate } = useRouter();
+  const { user } = useAuth();
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<HeaderTab>(
     path === "/create-ticket" ? "create-ticket" : "my-tickets"
@@ -150,7 +186,7 @@ function AppShell() {
   const handleNavigateTab = (tab: HeaderTab) => {
     setSelectedTicketId(null);
     setActiveTab(tab);
-    navigate(pathForTab(tab));
+    navigate(pathForTab(tab, user?.role));
   };
 
   return (
@@ -238,7 +274,7 @@ function AppRoutes() {
     if (user.role !== "ADMINISTRATOR") {
       return (
         <div className="min-vh-100 d-flex flex-column bg-light">
-          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab, user.role))} />
           <AccessDenied />
         </div>
       );
@@ -250,12 +286,29 @@ function AppRoutes() {
     );
   }
 
-  if (path === "/staff/queue") {
+  // Lab 4 Issue 7 — IT Staff / Administrator Dashboard.
+  if (path === "/staff/dashboard") {
+    if (!canAccessStaffQueue(user.role)) {
+      return (
+        <div className="min-vh-100 d-flex flex-column bg-light">
+          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab, user.role))} />
+          <AccessDenied />
+        </div>
+      );
+    }
+    return (
+      <ProtectedRoute>
+        <StaffDashboardShell />
+      </ProtectedRoute>
+    );
+  }
+
+  if (path === "/staff/queue" || path.startsWith("/staff/queue?")) {
     // Issue 6: restricted to IT Staff and Administrators (Requesters get 403).
     if (!canAccessStaffQueue(user.role)) {
       return (
         <div className="min-vh-100 d-flex flex-column bg-light">
-          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab, user.role))} />
           <AccessDenied />
         </div>
       );
@@ -271,7 +324,7 @@ function AppRoutes() {
     if (!canAccessStaffQueue(user.role)) {
       return (
         <div className="min-vh-100 d-flex flex-column bg-light">
-          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab))} />
+          <Header activeTab="my-tickets" setActiveTab={(tab) => navigate(pathForTab(tab, user.role))} />
           <AccessDenied />
         </div>
       );

@@ -27,6 +27,10 @@ const formatDateTime = (value: string) =>
 interface StaffTicketQueueProps {
   /** Navigates to the IT Staff ticket detail page (Issue 7). */
   onViewTicket: (ticketId: string) => void;
+  /** Optional dashboard drill-down filters (Lab 4, Issue 7). */
+  initialOwnerId?: string;
+  initialStatus?: string;
+  initialItPriority?: string;
 }
 
 /**
@@ -35,7 +39,12 @@ interface StaffTicketQueueProps {
  * (< 768px) with no horizontal scroll. Includes loading skeletons, empty /
  * no-results states, error banners, and pagination controls.
  */
-export const StaffTicketQueue: React.FC<StaffTicketQueueProps> = ({ onViewTicket }) => {
+export const StaffTicketQueue: React.FC<StaffTicketQueueProps> = ({
+  onViewTicket,
+  initialOwnerId,
+  initialStatus,
+  initialItPriority,
+}) => {
   const [tickets, setTickets] = useState<StaffTicket[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -48,14 +57,21 @@ export const StaffTicketQueue: React.FC<StaffTicketQueueProps> = ({ onViewTicket
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("");
-  const [selectedItPriority, setSelectedItPriority] = useState("");
-  const [selectedOwner, setSelectedOwner] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState(initialStatus ?? "");
+  const [selectedItPriority, setSelectedItPriority] = useState(initialItPriority ?? "");
+  const [selectedOwner, setSelectedOwner] = useState(initialOwnerId ?? "");
 
   // Sorting + pagination
   const [sortColumn, setSortColumn] = useState<SortColumn>("createdAt");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Dashboard drill-downs can update the URL while the queue stays mounted.
+  useEffect(() => {
+    setSelectedOwner(initialOwnerId ?? "");
+    setSelectedStatus(initialStatus ?? "");
+    setSelectedItPriority(initialItPriority ?? "");
+  }, [initialOwnerId, initialStatus, initialItPriority]);
 
   useEffect(() => {
     getCategories()
