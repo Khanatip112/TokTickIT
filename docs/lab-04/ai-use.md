@@ -1,0 +1,18 @@
+# Lab 4 — AI Use and Reflection
+
+**LLM/agent used:** Opencode with DeepSeek-V4.1 Flash,Antigravity for coding agent with Gemini 3.8 Flash and Claude 4.6 Sonnet, Gemini (Chatbot) for general knowledge and guide my workflow to save token usage.
+
+## Selected key prompts (6–10)
+| # | Prompt (summarised) | What I did with the result |
+|---|---------------------|----------------------------|
+| 1 | Write the Lab 4 engineering contracts before any code: `specification.md`, `ui-spec.md`, `api-spec.md`, and `tests.md`, covering Actions Taken, the Resolution Gate, dashboards, and acceptance criteria. | Turned the stakeholder request into numbered FR/BR rules, a status matrix, endpoint schemas, and a traceability table; used these documents as the source of truth for every later issue. |
+| 2 | Add an `ActionTaken` model to the Prisma schema and update the idempotent seed without breaking existing Lab 1–3 data. | Added the `ActionTaken` table with a `Ticket` 1:N relation, the `ActionResult` enum, a session-derived `performedById`, and timestamps; generated the `20261019144910_add_action_taken_model` migration and extended the seed with realistic actions. |
+| 3 | Implement the Actions Taken REST API with RBAC and validation for IT Staff and Administrators. | Built `GET/POST /api/tickets/:id/actions-taken` and `PUT /api/actions-taken/:actionId` in `actionsTakenController.ts`, derived `performedBy` from the session, rejected Requesters with `403`, and added Supertest coverage for CRUD, validation, and role checks. |
+| 4 | Build the Actions Taken UI inside Ticket Detail, with a create form, inline edit, and a read-only Requester view. | Created `ActionsTakenSection`, `ActionsTakenList`, and `ActionTakenForm`, wired them into `TicketDetail.tsx` and `StaffTicketDetail.tsx`, and hid the form and edit buttons for Requesters while keeping the chronological list visible. |
+| 5 | Enforce the BR-15 status transition matrix and the BR-09 Resolution Gate on the server, and mirror both in the UI. | Added permitted-transition checks that return `422` for illegal jumps, blocked `RESOLVED` and `CLOSED` until at least one Action Taken exists, kept the BR-17 resolution summary mandatory, and made the status select hide invalid targets with a visible gate notice. |
+| 6 | Implement the Requester Dashboard API and UI metric cards with drill-down links. | Added `GET /api/dashboards/requester` with ownership-scoped counts, built `RequesterDashboard.tsx` metric cards and recent-ticket widgets, and linked each card to `/my-tickets?status=...` so the list opens pre-filtered. |
+| 7 | Implement the IT Staff and Administrator dashboards, including RBAC guards and Administrator-only user statistics. | Added `GET /api/dashboards/staff` behind `requireRole("IT_STAFF", "ADMINISTRATOR")`, built the operational metric cards, status/priority breakdowns, queue drill-downs, and the admin-only account statistics section; verified that a Requester receives `403` in both the UI and the API. |
+| 8 | Write Playwright E2E specs for Actions Taken, the Resolution Gate, and all dashboards, and capture review screenshots at three viewports. | Added `actions-taken-flow.spec.ts`, `ticket-resolution.spec.ts`, and `dashboards.spec.ts` with a shared `support.ts`; created fixtures through the API, asserted UI and API behaviour, and captured 21 full-page PNGs at Desktop `1280x800`, Tablet `768x1024`, and Mobile `375x667`. |
+
+## Reflection
+From all the labs and lessons, I learned that Spec DD and TDD are very important. They help me control the AI much better. I now use AI for many different tasks, which makes my work feel more organized. My workflow has fewer errors, and it saves me a lot of time and effort.
