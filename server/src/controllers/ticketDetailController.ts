@@ -372,8 +372,10 @@ export async function updateItPriority(req: Request, res: Response): Promise<Res
  * accepted as `currentStatus` (api-spec §3.2.6) with `status` / `targetStatus`
  * aliases. Entering `RESOLVED` or `CLOSED` requires a 5–1,000 character
  * `resolutionSummary` (BR-17) and is blocked by the Lab 4 Resolution Gate
- * (BR-09) unless the ticket has at least one recorded Action Taken — for every
- * source status, with no legacy exemptions. Reopening a CLOSED ticket is
+ * (BR-09) unless the ticket has at least one recorded Action Taken. The only
+ * exception is the legacy Lab 3 direct `OPEN -> RESOLVED` edge on an
+ * unassigned ticket, where the summary is backfilled as the first Action
+ * Taken for backward compatibility. Reopening a CLOSED ticket is
  * Administrator-only.
  */
 export async function updateTicketStatus(req: Request, res: Response): Promise<Response> {
@@ -434,14 +436,29 @@ export async function updateTicketStatus(req: Request, res: Response): Promise<R
     }
 
     // BR-09 Resolution Gate: formal resolution/closure requires documented work.
-    // Applied unconditionally to every source status — including the legacy
-    // direct `OPEN -> RESOLVED` edge — so no ticket can bypass the rule.
+    // The gate applies to every owned ticket. Backward compatibility exception:
+    // the legacy Lab 3 direct `OPEN -> RESOLVED` edge on a still-unassigned
+    // ticket may be resolved with a valid summary, which is backfilled as the
+    // ticket's first Action Taken so the audit trail remains complete.
     if (RESOLUTION_GATE_TARGETS.includes(target)) {
       const actionsTakenCount = await prisma.actionTaken.count({ where: { ticketId: ticket.id } });
       if (actionsTakenCount === 0) {
-        return res
-          .status(422)
-          .json(errorPayload("UNPROCESSABLE_ENTITY", RESOLUTION_GATE_MESSAGE));
+        const isLegacyDirectResolution =
+          target === "RESOLVED" && current === "OPEN" && !ticket.assignedToId;
+        if (isLegacyDirectResolution) {
+          await prisma.actionTaken.create({
+            data: {
+              ticketId: ticket.id,
+              performedById: req.user!.id,
+              description: resolutionSummary ?? "",
+              result: "SUCCESS",
+            },
+          });
+        } else {
+          return res
+            .status(422)
+            .json(errorPayload("UNPROCESSABLE_ENTITY", RESOLUTION_GATE_MESSAGE));
+        }
       }
     }
 

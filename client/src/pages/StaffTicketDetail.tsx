@@ -160,8 +160,10 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
     try {
       const detail = await getStaffTicket(ticketId);
       setTicket(detail);
-      setResolutionSummary(detail.resolutionSummary ?? "");
-      setPendingStatus("");
+      // Seed the saved summary only when the field is still untouched. A late
+      // refresh (e.g. React StrictMode's double effect invocation) must never
+      // clobber a status/summary the user is actively editing.
+      setResolutionSummary((prev) => (prev === "" ? detail.resolutionSummary ?? "" : prev));
     } catch (err) {
       setTicket(null);
       setLoadError(errorMessage(err, "Failed to load the ticket."));
@@ -171,6 +173,10 @@ export const StaffTicketDetail: React.FC<StaffTicketDetailProps> = ({
   }, [ticketId]);
 
   useEffect(() => {
+    // Reset the pending form synchronously on mount / ticket change; the async
+    // load below must not reset it after the user has made a selection.
+    setPendingStatus("");
+    setResolutionSummary("");
     loadTicket();
     getStaffUsers()
       .then(setStaff)
